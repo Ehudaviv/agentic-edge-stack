@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: agent-app
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.agent.servicePort }}
+      targetPort: http
+      nodePort: {{ .Values.agent.nodePort }}
+      name: http
+  selector:
+    app: agent-app

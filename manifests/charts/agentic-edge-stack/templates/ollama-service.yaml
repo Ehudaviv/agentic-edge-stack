@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-headless
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ollama
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.ollama.servicePort }}
+      name: http
+  selector:
+    app: ollama
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ollama
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.ollama.servicePort }}
+      targetPort: http
+      nodePort: {{ .Values.ollama.nodePort }}
+      name: http
+  selector:
+    app: ollama

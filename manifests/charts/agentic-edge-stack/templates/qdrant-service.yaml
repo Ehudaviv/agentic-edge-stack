@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-headless
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: qdrant
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.qdrant.servicePort }}
+      name: http
+    - port: 6334
+      name: grpc
+  selector:
+    app: qdrant
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: qdrant
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.qdrant.servicePort }}
+      targetPort: http
+      nodePort: {{ .Values.qdrant.nodePort }}
+      name: http
+    - port: 6334
+      targetPort: grpc
+      name: grpc
+  selector:
+    app: qdrant

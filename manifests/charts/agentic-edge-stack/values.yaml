@@ -1,0 +1,73 @@
+# Global settings
+namespace: agentic-edge-stack
+
+# Component 1: FastAPI AI Agent service
+agent:
+  replicaCount: 2
+  image: "k3d-registry.localhost:5001/agent-app:latest"
+  imagePullPolicy: Always
+  containerPort: 8000
+  servicePort: 8000
+  nodePort: 30000
+  apiKey: "secure-api-key-2026"
+  
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+      
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 50
+
+# Component 2: Ollama Inference Server
+ollama:
+  replicaCount: 1
+  image: "ollama/ollama:latest"
+  imagePullPolicy: IfNotPresent
+  containerPort: 11434
+  servicePort: 11434
+  nodePort: 30134
+  modelName: "qwen2.5:0.5b"
+  
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+      
+  persistence:
+    enabled: true
+    storageClass: "local-path" # k3s default local storage class
+    size: "10Gi"
+    accessMode: "ReadWriteOnce"
+
+# Component 3: Qdrant Vector Store
+qdrant:
+  replicaCount: 1
+  image: "qdrant/qdrant:latest"
+  imagePullPolicy: IfNotPresent
+  containerPort: 6333
+  servicePort: 6333
+  nodePort: 30333
+  
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+      
+  persistence:
+    enabled: true
+    storageClass: "local-path"
+    size: "5Gi"
+    accessMode: "ReadWriteOnce"

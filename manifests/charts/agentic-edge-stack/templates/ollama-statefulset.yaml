@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ollama
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ollama
+spec:
+  serviceName: ollama-headless
+  replicas: {{ .Values.ollama.replicaCount }}
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image | quote }}
+          imagePullPolicy: {{ .Values.ollama.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ollama.containerPort }}
+              name: http
+          # Automatic model downloader entrypoint command
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              echo "Starting Ollama server..."
+              /bin/ollama serve &
+              
+              # Wait for server socket to open
+              until /bin/ollama list >/dev/null 2>&1; do
+                echo "Waiting for Ollama daemon to bind..."
+                sleep 2
+              done
+              
+              echo "Checking if model {{ .Values.ollama.modelName }} is already loaded..."
+              # Attempt to pull the model (will skip/fast-forward if already on PV disk)
+              /bin/ollama pull {{ .Values.ollama.modelName }}
+              
+              echo "Ollama server initialization complete. Keeping server in foreground..."
+              wait
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+      volumes:
+        - name: ollama-storage
+          {{- if .Values.ollama.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: ollama-storage-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

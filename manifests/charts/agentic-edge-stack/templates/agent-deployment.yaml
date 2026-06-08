@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-app
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: agent-app
+spec:
+  replicas: {{ .Values.agent.replicaCount }}
+  selector:
+    matchLabels:
+      app: agent-app
+  template:
+    metadata:
+      labels:
+        app: agent-app
+    spec:
+      # Run pod using non-root security context
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        runAsNonRoot: true
+      containers:
+        - name: agent-app
+          image: {{ .Values.agent.image | quote }}
+          imagePullPolicy: {{ .Values.agent.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.agent.containerPort }}
+              name: http
+          # Environment variables mapped from ConfigMap and Secret
+          env:
+            - name: LLM_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-config
+                  key: LLM_URL
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-config
+                  key: LLM_MODEL
+            - name: QDRANT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-config
+                  key: QDRANT_URL
+            - name: QDRANT_COLLECTION
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-config
+                  key: QDRANT_COLLECTION
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secret
+                  key: API_KEY
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}

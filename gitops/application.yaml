@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agentic-edge-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # Points to your GitHub repository
+    repoURL: 'https://github.com/ehudaviv/agentic-edge-stack.git'
+    targetRevision: HEAD
+    path: manifests/charts/agentic-edge-stack
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: agentic-edge-stack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

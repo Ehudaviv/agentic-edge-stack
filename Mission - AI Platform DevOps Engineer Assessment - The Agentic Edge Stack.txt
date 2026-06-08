@@ -1,0 +1,66 @@
+AI Platform DevOps Engineer Assessment: The Agentic Edge Stack
+
+Objective
+To design, deploy, and optimize a locally simulated, production-ready infrastructure on Kubernetes for an Advanced AI Assistant platform. In this iteration, the evaluation covers a hybrid responsibility: writing a lightweight operational Agent service utilizing an agent framework and FastAPI, and architecting a highly available, observable, and automated cloud-native Kubernetes environment that hosts the written Agent service, an LLM inference engine, and a distributed vector database. You will demonstrate mastery over lightweight backend coding, Kubernetes orchestration, GitOps, configuration management, horizontal scaling under load, model serving optimization, and comprehensive platform observability.
+
+Part 1: Backend Engineering — The Lightweight Agent Service
+● Task: Develop a minimal, operational AI Agent service that will serve as the primary backend microservice in your Kubernetes cluster.
+● Frameworks: Use FastAPI to build the API service, and a lightweight agent framework (such as LangChain, LangGraph, CrewAI, or a native Python tool-calling loop).
+● Logic & Endpoints:
+  ○ Implement a /chat endpoint supporting real-time streaming (Server-Sent Events) to stream tokens back to the user.
+  ○ Expose a tool-calling capability within your agent. Wrap a mock tool or a simple vector store lookup function as a tool that the agent can choose to execute based on the user's prompt.
+● Configuration: Design the application to dynamically accept its configuration parameters—such as the LLM Inference Server URL and the Vector DB connection strings—strictly via environment variables.
+● Deliverables:
+  ○ Clean, well-structured Python source code for the FastAPI Agent service.
+  ○ A local validation script or cURL commands proving the streaming /chat endpoint works when dependencies are mocked.
+
+Part 2: Containerization & Local Infrastructure Provisioning
+● Task: Set up a local multi-node Kubernetes cluster simulating a production cloud environment, and containerize your custom Agent service alongside its infrastructure dependencies.
+● Cluster Provisioning: Initialize a multi-node local cluster using Kind, Minikube, or k3s. The cluster must contain at least 1 control-plane node and 2 worker nodes.
+● Registry Setup: Set up a local container registry integrated with your cluster to push and pull custom images.
+● Containerization: Provide an optimized multi-stage Dockerfile for your FastAPI Agent service. Ensure minimal layer sizes, secure multi-stage builds, and a designated non-root security context.
+● Deliverables:
+  ○ A cluster configuration file (e.g., kind-config.yaml).
+  ○ A Shell script or Makefile that automates cluster creation, registry connection, image building, and pushing.
+  ○ The optimized, secure production Dockerfile for your custom Agent application.
+
+Part 3: Orchestration & Declarative Deployments (Kubernetes Core)
+● Task: Co-locate and deploy the complete Agentic Edge Stack declaratively on your Kubernetes cluster. You can use raw Kubernetes manifests or structure them into a Helm chart.
+● Component 1: Custom Agent App (The FastAPI Service): Deploy your custom-built Agent application as a Deployment. Configure a HorizontalPodAutoscaler (HPA) targeting CPU utilization. Inject the necessary connection strings for the Vector DB and Inference Server using environment variables mapped from ConfigMaps and Secrets.
+● Component 2: Inference Server (vLLM or Ollama): Deploy an open-source LLM server as a StatefulSet or Deployment. Configure resource requests and limits carefully to handle intensive execution (simulating CPU-bound or GPU-bound workloads). Implement readiness and liveness probes targeting the model's /health or /api/tags endpoints.
+  ○ Sizing Requirement: Configure your deployment manifests to explicitly reference a specific model target (e.g., Llama 3.2 3B, Qwen 2.5 7B) sized appropriately for your simulated environment's CPU/GPU constraints.
+● Component 3: Distributed Vector Store (Qdrant or Weaviate): Deploy a standalone vector database.
+● Deliverables:
+  ○ A complete set of Kubernetes manifests or a structured Helm Chart encompassing all Deployments, StatefulSets, Services (ClusterIP/NodePort), ConfigMaps, and Secrets.
+  ○ Secure management of system environment variables (e.g., API keys, database credentials) utilizing Kubernetes Secrets.
+
+Part 4: Advanced DevOps Challenges & Observability (Bonuses)
+Choose at least one of the following production-grade engineering tasks to maximize your evaluation score:
+
+Track A: Advanced Inference Optimization & Advanced Quantization
+Implement state-of-the-art inference engine tuning to maximize token throughput and minimize memory footprint within your cluster constraints:
+● Quantization Strategy: Configure your inference server manifest to pull, build, or initialize an advanced quantized version of your chosen model (e.g., AWQ, GPTQ, FP8 for vLLM; or specific GGUF K-quant variants like Q4_K_M or Q6_K for Ollama).
+● Engine Tuning Parameters: Document and inject optimized runtime flags into your container command or parameters (e.g., configuring --quantization flags, tuning the KV cache size using max-model-len or gpu_memory_utilization in vLLM, or defining a custom engine Modelfile with adjusted token parameters in Ollama).
+● Performance Trade-off Analysis: Provide a clear written comparison detailing how your selected quantization format impacts startup latency, VRAM/RAM footprints, and text generation quality.
+
+Track B: Platform Observability & Day-2 Operations
+Implement comprehensive monitoring and log aggregation to trace streaming requests and diagnose performance bottlenecks like high Time-to-First-Token (TTFT) or database latencies.
+● Metrics Collection: Deploy Prometheus and Grafana (using the Prometheus Operator or Helm).
+● Custom Dashboards & Scraping: Configure Prometheus to scrape metrics from your custom Agent service (FastAPI) and the Inference Engine (e.g., vLLM metrics endpoint). Set up a Grafana dashboard showing Pod CPU/Memory utilization, HTTP request rates, and inference latency.
+● Log Aggregation: Set up a lightweight logging stack (Loki + Promtail, or Fluentbit) to capture and stream stdout/stderr logs from all running pods, which is crucial for tracking agent execution traces.
+
+Track C: Chaos Engineering & Resiliency Testing
+Use a tool like Chaos Mesh or write an automated script to simulate infrastructure faults (e.g., killing the Vector DB master pod during an active agent data stream, injecting 200ms network latency between the Agent and the Inference Server). Document how your architecture handles the disruption.
+
+Track D: GitOps CD Automation
+Setup an ArgoCD or FluxCD controller inside your local cluster. Automate the synchronization of your infrastructure repository so that any change to the manifests or your Agent's deployment configuration is automatically applied to the cluster.
+
+Track E: Automated Load Testing & Scaling Verification
+Write a Locust or K6 load testing script that simulates 100 concurrent users hitting the streaming /chat endpoint on your Agent. Provide data graphs demonstrating the Horizontal Pod Autoscaler (HPA) triggering and successfully spinning up additional application replicas to handle the load.
+● Deliverables (For chosen option):
+  ○ ConfigMaps, custom Modelfiles/CRDs, or values files configuring your chosen advanced track (e.g., Prometheus targets, Grafana dashboards, optimized engine entrypoint commands, or Chaos manifests).
+
+Submission Guidelines
+● Platform: All configuration files, deployment scripts, Helm charts, application source code, and infrastructure documentation must be submitted via a public GitHub repository.
+● Timeline: Please submit your solution within one week from today.
+● Documentation: We heavily value clear communication. Your repository must include a comprehensive README.md that details your architecture, prerequisites, clear step-by-step instructions to spin up the entire cluster and deploy the agent from scratch, and verification commands.

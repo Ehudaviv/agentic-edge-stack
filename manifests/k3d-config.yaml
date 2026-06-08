@@ -1,0 +1,38 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: agentic-edge-stack
+servers: 1
+agents: 2
+image: rancher/k3s:v1.27.4-k3s1 # Explicitly lock version to match pre-cached node image
+ports:
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  - port: 30000:30000 # Host to Agent App NodePort
+    nodeFilters:
+      - agent:*
+  - port: 30134:30134 # Host to Ollama NodePort
+    nodeFilters:
+      - agent:*
+  - port: 30333:30333 # Host to Qdrant NodePort
+    nodeFilters:
+      - agent:*
+  - port: 30080:30080 # Host to ArgoCD NodePort
+    nodeFilters:
+      - agent:*
+  - port: 30030:30030 # Host to Grafana NodePort (Observability)
+    nodeFilters:
+      - agent:*
+registries:
+  use:
+    - k3d-registry.localhost:5001
+options:
+  k3d:
+    wait: true
+    timeout: "360s"
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik
+        nodeFilters:
+          - server:*
