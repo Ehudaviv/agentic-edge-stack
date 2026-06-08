@@ -81,12 +81,9 @@ kubectl apply -n argocd -f gitops/argocd-install.yaml --server-side --force-conf
 echo "Patching ArgoCD server to NodePort 30080..."
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 8080, "nodePort": 30080, "name": "http"}, {"port": 443, "targetPort": 8080, "nodePort": 30443, "name": "https"}]}}'
 
-# 8. Deploy the Agentic Edge Stack Helm Chart
-echo "Creating application namespace 'agentic-edge-stack'..."
-kubectl create namespace agentic-edge-stack || true
-
-echo "Installing/Upgrading Agentic Edge Stack Helm Chart..."
-helm upgrade --install agentic-edge-stack manifests/charts/agentic-edge-stack -n agentic-edge-stack
+# 8. Deploy the Agentic Edge Stack via GitOps (ArgoCD)
+echo "Deploying the Agentic Edge Stack Application via ArgoCD..."
+kubectl apply -f gitops/application.yaml
 
 echo "========================================================="
 echo "Bootstrap Complete! The Agentic Edge Stack is deployed."
