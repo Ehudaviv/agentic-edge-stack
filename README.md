@@ -129,11 +129,14 @@ Once deployed, you can verify that the custom `Modelfile` parameters and the tun
 
 ### Step 5: Deploy & Verify Observability (Phase 4, Track B)
 
+The observability stack gathers FastAPI metrics, aggregates logs, and provisions a custom GitOps-synced dashboard automatically. 
+
 To deploy the Prometheus, Grafana, and Loki monitoring stacks using the local offline tarballs, execute:
 
 ```bash
 ./scripts/deploy_monitoring.sh
 ```
+
 
 #### Verification Steps:
 

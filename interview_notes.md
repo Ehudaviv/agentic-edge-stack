@@ -119,6 +119,13 @@ To trace streaming requests and diagnose performance bottlenecks (e.g., latency 
      * *HTTP Request Latency (Quantiles)*: `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace="agentic-edge-stack", handler="/chat"}[2m])) by (le))` (calculates the 95th and 99th percentile streaming latency).
      * *Ollama / Qdrant Resource Utilization*: Tracking CPU and memory of backends separately to pinpoint if bottlenecks stem from model execution (Ollama CPU-bound) or vector indexing (Qdrant).
      * *Loki Container Logs*: `{namespace="agentic-edge-stack", container="agent-app"}` and `{namespace="agentic-edge-stack", container="ollama"}` to provide side-by-side real-time log analysis next to metrics.
+   * **MLOps Importance of These Metrics**:
+     * **FastAPI Pod CPU & Memory**: Vital to verify Horizontal Pod Autoscaler (HPA) behavior. In resource-constrained edge deployments, CPU spikes trigger pod scaling, while memory monitoring prevents Out-Of-Memory (OOM) kills during heavy concurrent request spikes.
+     * **HTTP Request Rates (SLA Volume)**: Identifies user traffic patterns, service load, and errors. A sudden surge in 5xx status codes highlights backend connectivity issues with Ollama or Qdrant.
+     * **FastAPI Request Latency (p95 & p99)**: In a streaming LLM setup, tracking average latency is misleading because LLM token generation times vary heavily by query context. Percentiles (p95, p99) capture the worst-case user experience (latency bottlenecks, queue stalls) and help evaluate LLM response consistency.
+     * **Ollama & Qdrant Resource Footprints**: Distinguishes application bottlenecks from infrastructure bottle-necks. Since LLM serving is heavily CPU/GPU bound, monitoring Ollama metrics indicates if we are queueing requests due to LLM hardware limitations, while Qdrant metrics track database indexing efficiency.
+   * **Where logs are shown**:
+     * Log streams are embedded directly **inside the Grafana Dashboard** on a dedicated row beneath the metrics charts. They use Loki's LogQL queries to pull container logs for both `agent-app` and `ollama` side-by-side. This allows developers to instantly correlate visual metric anomalies (e.g., a p99 latency spike or HTTP 500 error) with the exact container stderr/stdout logs in real time.
 
 ---
 
