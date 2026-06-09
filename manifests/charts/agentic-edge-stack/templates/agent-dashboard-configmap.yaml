@@ -291,6 +291,7 @@ data:
             {
               "datasource": "Loki",
               "expr": "{namespace=\"agentic-edge-stack\", container=\"agent-app\"}",
+              "queryType": "range",
               "refId": "A"
             }
           ],
@@ -318,6 +319,7 @@ data:
             {
               "datasource": "Loki",
               "expr": "{namespace=\"agentic-edge-stack\", container=\"ollama\"}",
+              "queryType": "range",
               "refId": "A"
             }
           ],
