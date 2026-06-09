@@ -1,0 +1,9 @@
+loki:
+  image:
+    repository: grafana/loki
+    tag: 2.6.1
+
+promtail:
+  image:
+    repository: grafana/promtail
+    tag: 3.5.1

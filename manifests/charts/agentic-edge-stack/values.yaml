@@ -1,6 +1,9 @@
 # Global settings
 namespace: agentic-edge-stack
 
+monitoring:
+  enabled: true
+
 # Component 1: FastAPI AI Agent service
 agent:
   replicaCount: 2

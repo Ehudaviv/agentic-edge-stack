@@ -126,3 +126,33 @@ Once deployed, you can verify that the custom `Modelfile` parameters and the tun
    ```bash
    kubectl logs -f deployment/agent-app -n agentic-edge-stack -c agent
    ```
+
+### Step 5: Deploy & Verify Observability (Phase 4, Track B)
+
+To deploy the Prometheus, Grafana, and Loki monitoring stacks using the local offline tarballs, execute:
+
+```bash
+./scripts/deploy_monitoring.sh
+```
+
+#### Verification Steps:
+
+1. **Check that monitoring pods are running**:
+   ```bash
+   kubectl get pods -n monitoring
+   ```
+
+2. **Access the Grafana Dashboard**:
+   * Open your browser to [http://localhost:30030](http://localhost:30030).
+   * **Username**: `admin`
+   * **Password**: `admin`
+
+3. **Verify metrics collection (FastAPI)**:
+   * Go to **Explore** (compass icon) in the Grafana sidebar.
+   * Select **Prometheus** from the top data source dropdown.
+   * In the query field, search for `fastapi_requests_total` (or `http_requests_total`) and click **Run Query**. This confirms that the Prometheus operator `PodMonitor` is actively scraping FastAPI metrics.
+
+4. **Verify log aggregation (Loki)**:
+   * Select **Loki** from the data source dropdown.
+   * Enter the query `{namespace="agentic-edge-stack", app="agent-app"}` and click **Run Query**. You will see container logs aggregated across all active replicas, allowing you to trace requests and exceptions.
+

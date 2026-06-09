@@ -1,0 +1,18 @@
+{{- if .Values.monitoring.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: agent-app-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: agent-app
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: agent-app
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+{{- end }}

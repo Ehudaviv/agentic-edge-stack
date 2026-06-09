@@ -1,0 +1,60 @@
+prometheusOperator:
+  image:
+    repository: quay.io/prometheus-operator/prometheus-operator
+    tag: v0.91.0
+
+prometheus:
+  prometheusSpec:
+    image:
+      repository: quay.io/prometheus/prometheus
+      tag: v3.12.0-distroless
+    # Make sure Prometheus Operator discovers our ServiceMonitor / PodMonitor without filtering namespace
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+alertmanager:
+  alertmanagerSpec:
+    image:
+      repository: quay.io/prometheus/alertmanager
+      tag: v0.32.2
+
+nodeExporter:
+  image:
+    repository: quay.io/prometheus/node-exporter
+    tag: v1.11.1-distroless
+
+kube-state-metrics:
+  image:
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    tag: v2.19.0
+
+grafana:
+  image:
+    repository: grafana/grafana
+    tag: 13.0.1-security-01
+  sidecar:
+    image:
+      repository: quay.io/kiwigrid/k8s-sidecar
+      tag: v2.7.3
+  service:
+    type: NodePort
+    nodePort: 30030
+  adminPassword: "admin"
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-stack:3100
+      jsonData:
+        maxLines: 1000
+
+# Disable metric scraping of components not present/accessible in standard local k3s clusters to prevent console errors
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false

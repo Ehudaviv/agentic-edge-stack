@@ -95,7 +95,18 @@ In production, model serving engines must be tuned to maximize throughput and li
 * **`SYSTEM` Prompt Injection**:
   * *MLOps Impact*: Injects structural instructions directly at the model compiler layer rather than appending them in the API wrapper. This saves token overhead on every chat turn, reducing TTFT (Time-to-First-Token).
 
----
+### Platform Observability & Log Aggregation (Track B)
+To trace streaming requests and diagnose performance bottlenecks (e.g., latency spikes, tool failures), we deployed a standard production-grade monitoring stack.
+
+1. **Prometheus Operator & ServiceMonitor/PodMonitor CRDs**:
+   * **Concept**: The Prometheus Operator acts as a Kubernetes controller that monitors custom resources (`ServiceMonitor` or `PodMonitor`). Instead of manually configuring scraping endpoints in a massive global Prometheus config file, developers define a declarative `PodMonitor` next to their application deployment.
+   * **Why it matters**: It scales metrics scraping dynamically. When new application pods scale out (via HPA), Prometheus automatically discovers and scrapes them via the pod selector labels, without needing manual configuration restarts.
+   * **Our Usage**: We deployed a `PodMonitor` inside our application Helm chart targeting `app: agent-app` on port `http` (`8000`) at path `/metrics`.
+
+2. **Loki & Promtail (Log Aggregation)**:
+   * **Concept**: Loki is a horizontally-scalable, highly-available log aggregation system. Unlike Elasticsearch, Loki does not index the full-text of logs; instead, it only indexes label metadata (e.g., namespace, pod name, container), keeping storage costs extremely low.
+   * **Promtail**: A logging agent deployed as a `DaemonSet` on every cluster node. It discovers local container log directories, attaches labels, and streams them to Loki.
+   * **Why it matters**: In a dynamic microservice environment where pods are scaled or terminated by HPA, raw container logs are lost upon deletion. Centralizing logs in Loki enables aggregate search, log preservation, and dashboard tracing.
 
 ---
 
@@ -124,6 +135,7 @@ In production, model serving engines must be tuned to maximize throughput and li
 * **`src/Dockerfile`**: Configured for multi-stage secure containerization. It uses a builder stage to compile requirements, creates a non-root group and user (UID/GID `10001`), copies files into local paths under the user's scope, and drops root permissions entirely before starting FastAPI.
 * **`manifests/k3d-config.yaml`**: Multi-node topology config setting up 1 control plane and 2 worker agents. Maps specific NodePorts from the host to k3d nodes to enable direct developer access.
 * **`scripts/bootstrap.sh`**: Extended bootstrap script that creates the cluster/registry, builds/registers the FastAPI image, imports all Docker images (ArgoCD, Qdrant, Ollama) offline, installs ArgoCD, and deploys the unified Helm chart.
+* **`scripts/deploy_monitoring.sh`**: Automates deploying both `kube-prometheus-stack` and `loki-stack` in the `monitoring` namespace using local tarballs.
 * **`manifests/charts/agentic-edge-stack/`**:
   * **`Chart.yaml`**: Standard Helm metadata file describing version, appVersion, and description.
   * **`values.yaml`**: Configures all parameters (e.g. image name/tags, ports, HPA cpu utilisation, persistent volumes sizes, and resource constraints) dynamically.
@@ -134,6 +146,10 @@ In production, model serving engines must be tuned to maximize throughput and li
     * **`ollama-statefulset.yaml` & `ollama-service.yaml` & `ollama-pvc.yaml`**: Stateful deployment of the Ollama server. Includes an automated model puller script (using `ollama list` loops) to download `qwen2.5:0.5b` to the 10Gi persistent volume.
     * **`ollama-configmap.yaml`**: Houses the custom `Modelfile` settings (temperature, context length, system prompt, prediction limits) used to compile our optimized model at startup.
     * **`qdrant-statefulset.yaml` & `qdrant-service.yaml` & `qdrant-pvc.yaml`**: Stateful deployment of the Qdrant database. Mounts a 5Gi persistent volume and exposes http/grpc ports.
+    * **`agent-podmonitor.yaml`**: Configures the Prometheus `PodMonitor` target to scrape FastAPI metrics dynamically inside the cluster.
+* **`manifests/monitoring/`**:
+  * **`prometheus-values.yaml`**: Local overrides for `kube-prometheus-stack`, pinning image repositories/tags and setting up Grafana NodePort 30030 with automatic Loki datasource provisioning.
+  * **`loki-values.yaml`**: Local overrides config for Loki + Promtail to run offline in the cluster.
 * **`gitops/application.yaml`**: ArgoCD Application manifest linking your repository path (`manifests/charts/agentic-edge-stack`) to the cluster, enabling GitOps synchronization.
 * **`gitops/argocd-install.yaml`**: ArgoCD installation manifests (downloaded from the stable repository).
 
