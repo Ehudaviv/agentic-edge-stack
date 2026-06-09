@@ -111,6 +111,7 @@ In production, model serving engines must be tuned to maximize throughput and li
 
 ## 4. Created Files & Directories (Phases 1, 2, & 3)
 
+* **`.gitignore`**: Configured to exclude `.venv/`, Python caches (`__pycache__/`, `*.pyc`), and debug logs from version control tracking.
 * **`src/requirements.txt`**: Declares app dependencies (`fastapi`, `uvicorn`, `httpx`, `qdrant-client`, `prometheus-fastapi-instrumentator`, `sse-starlette`).
 * **`src/app/config.py`**: Manages environment variable parsing with defaults using `pydantic-settings`.
 * **`src/app/tools.py`**: Handles connection to Qdrant with dynamic mock lookup fallback.
@@ -131,6 +132,7 @@ In production, model serving engines must be tuned to maximize throughput and li
     * **`agent-configmap.yaml` & `agent-secret.yaml`**: Houses connection strings (pointing to `ollama-service` and `qdrant-service`) and the API bearer key.
     * **`agent-hpa.yaml`**: Configures HPA scaling boundaries (min 2, max 10, target 50% CPU).
     * **`ollama-statefulset.yaml` & `ollama-service.yaml` & `ollama-pvc.yaml`**: Stateful deployment of the Ollama server. Includes an automated model puller script (using `ollama list` loops) to download `qwen2.5:0.5b` to the 10Gi persistent volume.
+    * **`ollama-configmap.yaml`**: Houses the custom `Modelfile` settings (temperature, context length, system prompt, prediction limits) used to compile our optimized model at startup.
     * **`qdrant-statefulset.yaml` & `qdrant-service.yaml` & `qdrant-pvc.yaml`**: Stateful deployment of the Qdrant database. Mounts a 5Gi persistent volume and exposes http/grpc ports.
 * **`gitops/application.yaml`**: ArgoCD Application manifest linking your repository path (`manifests/charts/agentic-edge-stack`) to the cluster, enabling GitOps synchronization.
 * **`gitops/argocd-install.yaml`**: ArgoCD installation manifests (downloaded from the stable repository).
