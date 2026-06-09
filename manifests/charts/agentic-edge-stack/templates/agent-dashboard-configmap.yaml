@@ -1,0 +1,379 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentic-edge-stack-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  agentic-edge-stack-dashboard.json: |-
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "datasource",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "FastAPI Agent Pods CPU Utilization",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"agentic-edge-stack\", container=\"agent-app\"}[2m])) by (pod)",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "short"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "FastAPI Agent Pods Memory Utilization",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"agentic-edge-stack\", container=\"agent-app\"}) by (pod)",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "bytes"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "FastAPI Agent HTTP Request Rate",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(rate(http_requests_total{namespace=\"agentic-edge-stack\"}[2m])) by (handler, status, method)",
+              "legendFormat": "{{ "{{" }}method{{ "}}" }} {{ "{{" }}handler{{ "}}" }} ({{ "{{" }}status{{ "}}" }})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "reqps"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "FastAPI Agent /chat Request Latency",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"agentic-edge-stack\", handler=\"/chat\"}[2m])) by (le))",
+              "legendFormat": "p95 Latency",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"agentic-edge-stack\", handler=\"/chat\"}[2m])) by (le))",
+              "legendFormat": "p99 Latency",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "s"
+            }
+          }
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Ollama Pod CPU",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 16
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"agentic-edge-stack\", container=\"ollama\"}[2m])) by (pod)",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }} CPU",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "short"
+            }
+          }
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Ollama Pod Memory",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 16
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"agentic-edge-stack\", container=\"ollama\"}) by (pod)",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }} Memory",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "bytes"
+            }
+          }
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Qdrant Pod CPU",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 16
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"agentic-edge-stack\", container=\"qdrant\"}[2m])) by (pod)",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }} CPU",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "short"
+            }
+          }
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Qdrant Pod Memory",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 16
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"agentic-edge-stack\", container=\"qdrant\"}) by (pod)",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }} Memory",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10
+              },
+              "unit": "bytes"
+            }
+          }
+        },
+        {
+          "id": 9,
+          "type": "logs",
+          "title": "FastAPI Agent Pod Logs",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 24
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki_datasource}"
+              },
+              "expr": "{namespace=\"agentic-edge-stack\", container=\"agent-app\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showLabels": false,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "showCommonLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 10,
+          "type": "logs",
+          "title": "Ollama Inference Pod Logs",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "${loki_datasource}"
+              },
+              "expr": "{namespace=\"agentic-edge-stack\", container=\"ollama\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showLabels": false,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "showCommonLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending"
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": [
+        "mlops",
+        "agentic-edge-stack"
+      ],
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": [
+          "5s",
+          "10s",
+          "30s",
+          "1m"
+        ]
+      },
+      "timezone": "browser",
+      "title": "MLOps - Agentic Edge Stack",
+      "uid": "mlops-agentic-edge-stack",
+      "version": 1,
+      "weekStart": ""
+    }
