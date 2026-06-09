@@ -50,7 +50,7 @@ This document details the phases we will follow to complete the AI Platform DevO
 ## Phase 5: Verification, Tuning, and README Documentation
 * **Objective**: Run verification scripts, analyze metrics, and prepare the submission.
 * **Tasks**:
-  * [ ] Run the end-to-end integration flow.
-  * [ ] Execute Locust load tests and check if HPA dynamically scales agent replicas.
-  * [ ] Run Chaos Engineering scenarios and monitor Grafana.
-  * [ ] Document the architecture, prerequisites, setup instructions, and validation details in `README.md`.
+  * [x] Run the end-to-end integration flow.
+  * [x] Execute Locust load tests and check if HPA dynamically scales agent replicas.
+  * [x] Run Chaos Engineering scenarios and monitor Grafana.
+  * [x] Document the architecture, prerequisites, setup instructions, and validation details in `README.md`.
