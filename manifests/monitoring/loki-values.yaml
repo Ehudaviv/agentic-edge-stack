@@ -7,3 +7,8 @@ promtail:
   image:
     repository: grafana/promtail
     tag: 3.5.1
+
+grafana:
+  sidecar:
+    datasources:
+      enabled: false

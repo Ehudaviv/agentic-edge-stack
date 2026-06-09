@@ -1,12 +1,16 @@
 prometheusOperator:
   image:
-    repository: quay.io/prometheus-operator/prometheus-operator
+    repository: prometheus-operator/prometheus-operator
     tag: v0.91.0
+  prometheusConfigReloader:
+    image:
+      repository: prometheus-operator/prometheus-config-reloader
+      tag: v0.91.0
 
 prometheus:
   prometheusSpec:
     image:
-      repository: quay.io/prometheus/prometheus
+      repository: prometheus/prometheus
       tag: v3.12.0-distroless
     # Make sure Prometheus Operator discovers our ServiceMonitor / PodMonitor without filtering namespace
     podMonitorSelectorNilUsesHelmValues: false
@@ -16,17 +20,17 @@ prometheus:
 alertmanager:
   alertmanagerSpec:
     image:
-      repository: quay.io/prometheus/alertmanager
+      repository: prometheus/alertmanager
       tag: v0.32.2
 
 nodeExporter:
   image:
-    repository: quay.io/prometheus/node-exporter
+    repository: prometheus/node-exporter
     tag: v1.11.1-distroless
 
 kube-state-metrics:
   image:
-    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    repository: kube-state-metrics/kube-state-metrics
     tag: v2.19.0
 
 grafana:
@@ -35,8 +39,8 @@ grafana:
     tag: 13.0.1-security-01
   sidecar:
     image:
-      repository: quay.io/kiwigrid/k8s-sidecar
-      tag: v2.7.3
+      repository: kiwigrid/k8s-sidecar
+      tag: "2.7.3"
   service:
     type: NodePort
     nodePort: 30030
@@ -46,6 +50,7 @@ grafana:
       type: loki
       access: proxy
       url: http://loki-stack:3100
+      isDefault: false
       jsonData:
         maxLines: 1000
 
