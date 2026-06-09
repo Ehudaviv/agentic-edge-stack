@@ -116,9 +116,9 @@ def main():
         "PYTHONPATH": "src"
     }
     
-    # Run uvicorn on localhost:8080
+    # Run uvicorn on localhost:18080
     app_process = subprocess.Popen(
-        ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8080", "--log-level", "warning"],
+        ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "18080", "--log-level", "warning"],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -131,18 +131,18 @@ def main():
     try:
         # 3. Query /health
         print("3. Querying /health endpoint...")
-        health_res = httpx.get("http://localhost:8080/health")
+        health_res = httpx.get("http://localhost:18080/health")
         print(f"Health Response: {health_res.json()}")
 
         # 4. Query /metrics (Track B check)
         print("4. Querying Prometheus /metrics endpoint...")
-        metrics_res = httpx.get("http://localhost:8080/metrics")
+        metrics_res = httpx.get("http://localhost:18080/metrics")
         print(f"Metrics response contains HTTP request count: {'http_requests_total' in metrics_res.text}")
 
         # 5. Query streaming /chat endpoint
         print("5. Triggering streaming /chat request for 'Tell me about Agentic Edge Stack'...")
         
-        with httpx.stream("POST", "http://localhost:8080/chat", json={"message": "Tell me about Agentic Edge Stack"}) as r:
+        with httpx.stream("POST", "http://localhost:18080/chat", json={"message": "Tell me about Agentic Edge Stack"}) as r:
             if r.status_code != 200:
                 print(f"Error: Chat response failed with status {r.status_code}")
                 sys.exit(1)

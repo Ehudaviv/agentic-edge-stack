@@ -64,14 +64,45 @@ if [ $count -eq $max_retries ]; then
 fi
 
 # 6. Import offline cached images into the k3d cluster to enable offline operation
-echo "Importing offline cached images into k3d..."
-k3d image import \
-  quay.io/argoproj/argocd:v3.4.3 \
-  ghcr.io/dexidp/dex:v2.45.0 \
-  public.ecr.aws/docker/library/redis:8.2.3-alpine \
-  ollama/ollama:latest \
-  qdrant/qdrant:latest \
-  -c "$CLUSTER_NAME"
+echo "Checking and pulling offline images if needed..."
+IMAGES_TO_IMPORT=(
+  # ArgoCD & Stack Core
+  "quay.io/argoproj/argocd:v3.4.3"
+  "ghcr.io/dexidp/dex:v2.45.0"
+  "public.ecr.aws/docker/library/redis:8.2.3-alpine"
+  "ollama/ollama:latest"
+  "qdrant/qdrant:latest"
+  
+  # Monitoring (Prometheus & Loki Stacks)
+  "quay.io/prometheus-operator/prometheus-operator:v0.91.0"
+  "quay.io/prometheus-operator/prometheus-config-reloader:v0.91.0"
+  "quay.io/prometheus/prometheus:v3.12.0-distroless"
+  "quay.io/prometheus/alertmanager:v0.32.2"
+  "quay.io/prometheus/node-exporter:v1.11.1-distroless"
+  "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.0"
+  "grafana/grafana:13.0.1-security-01"
+  "quay.io/kiwigrid/k8s-sidecar:2.7.3"
+  "grafana/loki:2.6.1"
+  "grafana/promtail:3.5.1"
+)
+
+for img in "${IMAGES_TO_IMPORT[@]}"; do
+  if ! docker image inspect "$img" >/dev/null 2>&1; then
+    echo "Image $img not found locally on host. Pulling..."
+    docker pull "$img"
+  fi
+done
+
+echo "Importing offline cached images into k3d nodes..."
+nodes=$(k3d node list --no-headers | awk '{print $1}' | grep "$CLUSTER_NAME" | grep -v 'tools')
+for node in $nodes; do
+  echo "Importing images to node: $node"
+  for img in "${IMAGES_TO_IMPORT[@]}"; do
+    echo "  Importing $img..."
+    docker save "$img" | docker exec -i "$node" ctr -n k8s.io images import - || true
+  done
+done
+
 
 # 7. Install ArgoCD in the cluster
 echo "Deploying ArgoCD..."

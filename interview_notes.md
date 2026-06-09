@@ -39,7 +39,12 @@ This document tracks our architectural decisions, justifications, and key concep
 * **Justification**:
   * **Edge-case**: Small localized models (such as Qwen 2.5 0.5B under resource limits) sometimes hallucinate tool arguments. Instead of outputting a clean string for parameters, they may output a dictionary containing the property schema description (e.g. `{'query': {'type': 'string', 'description': '...'}}`).
   * **Our Solution**: We implemented recursive dictionary parsing to detect nested properties and filter out schema metadata. If no clean search query can be extracted, the agent automatically falls back to using the user's raw message as the database query, rather than throwing an `AttributeError` like `'dict' object has no attribute 'lower'`.
-  * **Interview Context**: Demonstrates operational reliability in production. LLM outputs are unpredictable; building robust guardrails at the API gateway layer prevents cascading errors in down-stream services.
+### F. Developer Experience (DevEx) & Automated Lifecycle Orchestration
+* **Our Choice**: **Root-level Makefile and non-interactive scripts**
+* **Justification**:
+  * **Unified DevEx Entrypoint**: Rebuilding, deploying, monitoring, and testing a multi-node Kubernetes stack typically requires running dozens of commands manually. By encapsulating these in a standard `Makefile`, developers can execute full lifecycles (`make clean`, `make up`, `make test`, `make stress`, `make chaos`, `make all`) in a single step.
+  * **Image Pre-Caching & Import**: To ensure fast rebuilds and robust offline operations, all container images (ArgoCD, Redis, Ollama, Qdrant, Prometheus, Loki, Grafana) are pre-pulled and imported into the K3d node containers. This avoids redundant network operations on subsequent setups.
+  * **Automatic Readiness Gates**: Utilizing a dedicated `wait_for_ready.sh` script with native Kubernetes Go-templating avoids race conditions where tests run before pods are initialized, without requiring heavy external dependencies.
 
 ---
 
@@ -170,6 +175,8 @@ To validate that our agent service can scale elastically under high traffic volu
 ## 4. Created Files & Directories (Phases 1, 2, 3, & 4)
 
 
+* **`Makefile`**: Root-level orchestration interface defining help, venv, clean, bootstrap, monitoring, wait, up, test, test-cluster, stress, chaos, and all targets.
+* **`scripts/wait_for_ready.sh`**: Non-interactive loop using native Kubernetes Go-templating to wait for all cluster and monitoring pods to be fully ready.
 * **`.gitignore`**: Configured to exclude `.venv/`, Python caches (`__pycache__/`, `*.pyc`), and debug logs from version control tracking.
 * **`src/requirements.txt`**: Declares app dependencies (`fastapi`, `uvicorn`, `httpx`, `qdrant-client`, `prometheus-fastapi-instrumentator`, `sse-starlette`).
 * **`src/app/config.py`**: Manages environment variable parsing with defaults using `pydantic-settings`.
