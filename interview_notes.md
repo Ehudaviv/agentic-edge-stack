@@ -108,6 +108,18 @@ To trace streaming requests and diagnose performance bottlenecks (e.g., latency 
    * **Promtail**: A logging agent deployed as a `DaemonSet` on every cluster node. It discovers local container log directories, attaches labels, and streams them to Loki.
    * **Why it matters**: In a dynamic microservice environment where pods are scaled or terminated by HPA, raw container logs are lost upon deletion. Centralizing logs in Loki enables aggregate search, log preservation, and dashboard tracing.
 
+3. **Declarative Grafana Dashboard Provisioning (GitOps)**:
+   * **Concept**: Instead of manually building dashboards in the Grafana UI (which is prone to configuration drift and loss on pod restart), we store the dashboard definition as a JSON schema inside a Kubernetes `ConfigMap`.
+   * **Sidecar Watcher**: The Grafana pod runs a sidecar container (`kiwigrid/k8s-sidecar`) configured to watch all namespaces for ConfigMaps with the label `grafana_dashboard: "1"`. When added or updated, the sidecar downloads the JSON payload to `/tmp/dashboards` in the Grafana workspace, and triggers Grafana's dashboard reload API.
+   * **Why it matters**: It achieves complete GitOps parity for monitoring. Dashboards are code, version-controlled, and instantly recreated during disaster recovery or multi-region promotions.
+   * **Our Custom Panels & PromQL / LogQL Queries**:
+     * *FastAPI CPU Utilization*: `sum(rate(container_cpu_usage_seconds_total{namespace="agentic-edge-stack", container="agent-app"}[2m])) by (pod)` (visualized in CPU cores).
+     * *FastAPI Memory Utilization*: `sum(container_memory_working_set_bytes{namespace="agentic-edge-stack", container="agent-app"}) by (pod)` (visualized in IEC bytes).
+     * *HTTP Request Rate*: `sum(rate(http_requests_total{namespace="agentic-edge-stack"}[2m])) by (handler, status, method)` (visualized in requests per second).
+     * *HTTP Request Latency (Quantiles)*: `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace="agentic-edge-stack", handler="/chat"}[2m])) by (le))` (calculates the 95th and 99th percentile streaming latency).
+     * *Ollama / Qdrant Resource Utilization*: Tracking CPU and memory of backends separately to pinpoint if bottlenecks stem from model execution (Ollama CPU-bound) or vector indexing (Qdrant).
+     * *Loki Container Logs*: `{namespace="agentic-edge-stack", container="agent-app"}` and `{namespace="agentic-edge-stack", container="ollama"}` to provide side-by-side real-time log analysis next to metrics.
+
 ---
 
 ## 3. Interview Prep Questions
@@ -147,6 +159,7 @@ To trace streaming requests and diagnose performance bottlenecks (e.g., latency 
     * **`ollama-configmap.yaml`**: Houses the custom `Modelfile` settings (temperature, context length, system prompt, prediction limits) used to compile our optimized model at startup.
     * **`qdrant-statefulset.yaml` & `qdrant-service.yaml` & `qdrant-pvc.yaml`**: Stateful deployment of the Qdrant database. Mounts a 5Gi persistent volume and exposes http/grpc ports.
     * **`agent-podmonitor.yaml`**: Configures the Prometheus `PodMonitor` target to scrape FastAPI metrics dynamically inside the cluster.
+    * **`agent-dashboard-configmap.yaml`**: Houses the declarative custom MLOps Grafana dashboard definition mapping CPU, memory, request rates, latencies, and Loki logs.
 * **`manifests/monitoring/`**:
   * **`prometheus-values.yaml`**: Local overrides for `kube-prometheus-stack`, pinning image repositories/tags and setting up Grafana NodePort 30030 with automatic Loki datasource provisioning.
   * **`loki-values.yaml`**: Local overrides config for Loki + Promtail to run offline in the cluster.

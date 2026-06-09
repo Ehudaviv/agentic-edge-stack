@@ -154,5 +154,17 @@ To deploy the Prometheus, Grafana, and Loki monitoring stacks using the local of
 
 4. **Verify log aggregation (Loki)**:
    * Select **Loki** from the data source dropdown.
-   * Enter the query `{namespace="agentic-edge-stack", app="agent-app"}` and click **Run Query**. You will see container logs aggregated across all active replicas, allowing you to trace requests and exceptions.
+   * Enter the query `{namespace="agentic-edge-stack", container="agent-app"}` and click **Run Query**. You will see container logs aggregated across all active replicas, allowing you to trace requests and exceptions.
+
+5. **Verify the Custom MLOps Dashboard**:
+   * In the Grafana sidebar, click on **Dashboards** (or go to `http://localhost:30030/dashboards`).
+   * Select the **MLOps - Agentic Edge Stack** dashboard from the list.
+   * Confirm that it renders the 10 custom panels:
+     * **FastAPI Agent Pods CPU Utilization**: Metric `container_cpu_usage_seconds_total` tracking application CPU.
+     * **FastAPI Agent Pods Memory Utilization**: Metric `container_memory_working_set_bytes` tracking application RAM.
+     * **FastAPI Agent HTTP Request Rate**: Request throughput split by HTTP method, handler, and status code.
+     * **FastAPI Agent /chat Request Latency**: The 95th and 99th percentile latency distribution of streaming API calls.
+     * **Ollama & Qdrant Resource Footprints**: Individual CPU and Memory charts for the LLM runner and Vector DB.
+     * **Loki Logs**: Embedded panels showing real-time log outputs for both FastAPI and Ollama containers.
+
 
