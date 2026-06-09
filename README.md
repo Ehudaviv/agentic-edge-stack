@@ -10,32 +10,43 @@ This project showcases a complete end-to-end cloud-native implementation of loca
 
 ```
 .
-├── README.md                          # Main documentation
+├── Makefile                           # Root orchestrator (venv, up, clean, test, stress, chaos, all)
+├── README.md                          # Main documentation & evaluation guide
 ├── phases.md                          # Interactive project progress tracker
 ├── interview_notes.md                 # Detailed design justifications & interview prep
-├── scripts/
-│   ├── bootstrap.sh                   # Automates cluster spin-up, registries, and deployments
-│   ├── chaos_test.sh                  # Chaos engineering scenarios script
-│   └── validate_agent.py              # Local FastAPI offline validation script
-├── src/
-│   ├── Dockerfile                     # Multi-stage container file for FastAPI app
-│   ├── requirements.txt               # App dependencies
-│   └── app/
-│       ├── main.py                    # FastAPI app (streaming SSE, /health, /metrics)
-│       ├── agent.py                   # Native tool-calling agent loop (Ollama API client)
-│       ├── config.py                  # Pydantic Configuration loading from Env vars
-│       └── tools.py                   # Qdrant client & mock database lookup logic
-├── gitops/                            # GitOps CD automation
-│   ├── application.yaml               # ArgoCD Application spec
-│   └── argocd-install.yaml            # ArgoCD core controller manifests
-├── manifests/                         # Declarative Kubernetes Manifests (ArgoCD synced)
-│   ├── k3d-config.yaml                # k3d Multi-node cluster configuration
-│   ├── agent-app/                     # FastAPI app manifests (Deployment, HPA, Service)
-│   ├── inference/                     # Ollama manifests (StatefulSet, Service, Modelfile config)
-│   ├── vector-db/                     # Qdrant manifests (StatefulSet, Service)
-│   └── monitoring/                    # Observability helm charts (Prometheus/Grafana/Loki)
-└── tests/
-    └── load_test.py                   # Locust load test script
+├── Mission - AI Platform DevOps Engineer Assessment - The Agentic Edge Stack.txt # Original assessment description
+├── scripts/                           # Automation & validation scripts
+│   ├── bootstrap.sh                   # Cluster setup, image caching/node importing, and ArgoCD rollout
+│   ├── deploy_monitoring.sh           # Installs observability stack (Prometheus, Grafana, Loki)
+│   ├── wait_for_ready.sh              # Non-interactive pod health wait verification loop
+│   ├── validate_agent.py              # Local FastAPI offline validation script
+│   ├── run_load_test.sh               # Headless or UI runner for Locust load tests
+│   └── chaos_test.sh                  # Chaos engineering scenarios script
+├── src/                               # FastAPI application source code
+│   ├── Dockerfile                     # Secure multi-stage app container image configuration
+│   ├── requirements.txt               # App library dependencies
+│   └── app/                           
+│       ├── main.py                    # FastAPI service (SSE streaming, health & prometheus endpoints)
+│       ├── agent.py                   # Native LLM tool-calling async agent loop
+│       ├── config.py                  # Pydantic settings configuration loader
+│       └── tools.py                   # Qdrant DB connector with mock lookup fallback
+├── gitops/                            # GitOps CD automation configs
+│   ├── application.yaml               # ArgoCD Application mapping local Helm chart
+│   └── argocd-install.yaml            # ArgoCD platform manifests
+├── manifests/                         # Declarative Kubernetes configuration
+│   ├── k3d-config.yaml                # Declarative k3d multi-node topography configurations
+│   ├── charts/                        
+│   │   └── agentic-edge-stack/        # Unified Helm Chart for the core stack
+│   │       ├── Chart.yaml             # Chart metadata
+│   │       ├── values.yaml            # Configurable service parameters & resource specs
+│   │       └── templates/             # Deployments, StatefulSets, HPA, ConfigMaps, Secrets, PodMonitor
+│   └── monitoring/                    # Observability Helm packages and overrides
+│       ├── kube-prometheus-stack-86.2.0.tgz # Local Prom/Grafana Helm package
+│       ├── loki-stack-2.10.3.tgz            # Local Loki/Promtail Helm package
+│       ├── prometheus-values.yaml     # Custom Prometheus/Grafana integrations values
+│       └── loki-values.yaml           # Loki offline adjustments values
+└── tests/                             # E2E load/performance testing
+    └── load_test.py                   # Locust load test scenarios hitting streaming SSE API
 ```
 
 ---
