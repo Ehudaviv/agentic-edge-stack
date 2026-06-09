@@ -49,6 +49,7 @@ This project showcases a complete end-to-end cloud-native implementation of loca
 * **Vector Store**: Qdrant database with fallback support for local mock databases.
 * **Full Observability**: Prometheus and Grafana for metrics; Loki and Promtail for logs.
 * **Resiliency**: Dedicated Chaos Engineering test script to validate fault tolerance.
+* **Load Testing & Scaling**: Locust load testing script simulating concurrent users to verify HPA autoscaling.
 
 ---
 
@@ -187,42 +188,43 @@ To run the automated chaos tests, execute:
    * The script queries `/chat` continuously while forcefully deleting one of the active agent replica pods.
    * **Resilience Behavior**: Kubernetes immediately reroutes traffic to the other healthy replica pod. Client requests experience zero service interruption. The deployment controller automatically schedules a new pod to restore the replica count back to the HPA minimum.
 
-#### How to Replicate the Chaos Scenarios Manually:
+### Step 7: Run Automated Load Tests & HPA Scaling (Phase 4, Track E)
 
-##### Manually Replicate Scenario 1 (Database Outage):
-1. Start a continuous query loop in one terminal to poll the agent `/chat` endpoint:
-   ```bash
-   while true; do
-     curl -s -X POST http://localhost:30000/chat \
-       -H "Content-Type: application/json" \
-       -d '{"message": "What is k3d?"}' | grep -o '"token": "[^"]*"' | tr -d '\n'
-     echo ""
-     sleep 1
-   done
-   ```
-2. In a second terminal, delete the active Qdrant pod:
-   ```bash
-   kubectl delete pod qdrant-0 -n agentic-edge-stack --now
-   ```
-3. **Observe**: The terminal running the query loop continues streaming responses uninterrupted. Look at the logs of the FastAPI app (`kubectl logs -f deployment/agent-app -n agentic-edge-stack -c agent`) to confirm it detects the database connection failure and triggers the mock fallback.
-4. Verify that Kubernetes brings `qdrant-0` back online:
-   ```bash
-   kubectl wait --for=condition=Ready pod/qdrant-0 -n agentic-edge-stack --timeout=60s
-   ```
+We use **Locust** to simulate heavy concurrent load on the streaming `/chat` endpoint and verify that the Horizontal Pod Autoscaler (HPA) triggers pod scale-up.
 
-##### Manually Replicate Scenario 2 (Agent Pod Failure):
-1. Keep the continuous query loop running in your first terminal.
-2. In the second terminal, fetch the name of one of the active agent app pods:
+#### How to run the Load Test:
+1. Make sure you have activated the virtual environment:
    ```bash
-   AGENT_POD=$(kubectl get pods -n agentic-edge-stack -l app=agent-app -o jsonpath='{.items[0].metadata.name}')
-   echo "Targeting pod: $AGENT_POD"
+   source .venv/bin/activate
    ```
-3. Force-delete the target pod:
+2. Start the Locust test tool using the helper script:
    ```bash
-   kubectl delete pod "$AGENT_POD" -n agentic-edge-stack --now
+   ./scripts/run_load_test.sh
    ```
-4. **Observe**: The query loop continues to receive streamed tokens without dropping connections because Kubernetes immediately directs incoming traffic to the other healthy replica.
-5. Verify that a new replica pod is created automatically:
-   ```bash
-   kubectl rollout status deployment/agent-app -n agentic-edge-stack
-   ```
+   *By default, this will start the Locust Web UI server.*
+3. Open your browser and navigate to **`http://localhost:8089`**.
+4. Configure the test parameters:
+   * **Number of users**: `100` (concurrent users)
+   * **Spawn rate**: `10` (users spawned per second)
+   * **Host**: `http://localhost:30000` (FastAPI Agent NodePort)
+5. Click **Start swarming** to begin the load test.
+
+#### Headless CLI Alternative:
+To run the load test directly in your terminal for exactly 2 minutes without opening the Web UI:
+```bash
+./scripts/run_load_test.sh headless
+```
+
+#### What to Verify during Load Testing:
+1. **Locust UI Metrics**: Under the **Statistics** tab, observe separate tracked rows for `/chat [TTFT]` (measuring time to first token) and `/chat [Total Stream]` (measuring the full stream response duration) to inspect streaming performance.
+2. **HPA Autoscaling**:
+   * Open a terminal and watch the HPA resource utilization:
+     ```bash
+     kubectl get hpa agent-hpa -n agentic-edge-stack -w
+     ```
+   * Under heavy concurrent query streams (100 users), you will see the CPU utilization percentage exceed the target threshold (`50%`).
+   * The replica count will scale up from `2` to `3` or higher (up to `10`) to distribute the load across multiple FastAPI container instances.
+3. **Autoscaling Visualizations**:
+   * Access your Grafana dashboard at `http://localhost:30030/dashboards`.
+   * Open the **MLOps - Agentic Edge Stack** dashboard.
+   * Observe the **FastAPI Agent Pods CPU Utilization** and **FastAPI Agent Pods Memory Utilization** charts showing new pod lines as they scale up, alongside the overall increase in request rate and latency quantiles.

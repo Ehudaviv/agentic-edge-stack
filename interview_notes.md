@@ -138,6 +138,22 @@ To prove the production readiness of our architecture under failure, we simulate
    * *Our Resiliency Design*: We configure our agent application with multiple replicas distributed across worker nodes. When a pod is deleted, the Kubernetes API server immediately removes it from the Service endpoints list. Kube-proxy updates iptables rules within milliseconds, routing all incoming traffic to the remaining healthy replicas (failover redundancy). Clients experience zero downtime. The Deployment controller automatically schedules a new pod to restore the desired replica count.
    * *Kubernetes Node Outage vs. Pod Kill*: In our automated script, we chose a Pod Kill test over an abrupt Node Shutdown. This is because standard Kubernetes clusters have a default **40-second Node Lease Timeout** before a failed node is marked `NotReady`. During this 40-second window, kube-proxy still attempts to route 50% of connections to the dead node, causing client connection dropouts. In production, this is shielded using client-side retries or service mesh health checks (like Envoy/Istio), but for local tests, pod deletion provides a clean demonstration of API-driven high-availability routing.
 
+### Automated Load Testing & HPA Scaling Verification (Track E)
+To validate that our agent service can scale elastically under high traffic volumes, we simulate 100 concurrent clients executing requests simultaneously.
+
+* **Locust for Load Testing**:
+  * **Our Choice**: Python-based Locust load generator.
+  * **Justification**: Locust permits writing test scenarios using clean, standard Python code. It is highly lightweight and handles concurrent user modeling via asynchronous event loop tasks (`gevent`).
+* **Streaming SSE Load Metrics**:
+  * **TTFT vs. Total Stream Duration**: Since our `/chat` endpoint uses Server-Sent Events (SSE) to stream chunks back to the client, a traditional round-trip HTTP response latency metric is not descriptive. We implemented custom event listeners in `tests/load_test.py` to record:
+    1. **`SSE_TTFT` (Time-to-First-Token)**: The latency from initial request socket creation to the arrival of the first response chunk. This measures prompt compilation, vector store retrieval, and initial LLM generation latency.
+    2. **`SSE_Total` (Total Stream Duration)**: The duration from request initialization to the stream completion signal (`[DONE]`). This measures total token generation speed and throughput.
+* **HPA Scaling Mechanics**:
+  * The Horizontal Pod Autoscaler monitors the CPU usage of our FastAPI pods via the Kubernetes metrics server.
+  * During high load (100 users spawning at 10 users/sec), the average CPU utilization of our active agent pods quickly exceeds the `50%` threshold defined in the Helm template ([agent-hpa.yaml](file:///home/ehudaviv/projects/agentic-edge-stack/manifests/charts/agentic-edge-stack/templates/agent-hpa.yaml)).
+  * The HPA controller automatically triggers scaling, updating the Deployment replica count from its baseline of `2` up to `3` or higher (max `10`). The Kubernetes router immediately balances the incoming client HTTP requests across all active replicas.
+
+
 
 ---
 
@@ -151,7 +167,8 @@ To prove the production readiness of our architecture under failure, we simulate
 
 ---
 
-## 4. Created Files & Directories (Phases 1, 2, & 3)
+## 4. Created Files & Directories (Phases 1, 2, 3, & 4)
+
 
 * **`.gitignore`**: Configured to exclude `.venv/`, Python caches (`__pycache__/`, `*.pyc`), and debug logs from version control tracking.
 * **`src/requirements.txt`**: Declares app dependencies (`fastapi`, `uvicorn`, `httpx`, `qdrant-client`, `prometheus-fastapi-instrumentator`, `sse-starlette`).
@@ -161,6 +178,8 @@ To prove the production readiness of our architecture under failure, we simulate
 * **`src/app/main.py`**: FastAPI server initialization, SSE `/chat` stream implementation, and Prometheus metrics binding.
 * **`scripts/validate_agent.py`**: Offline-friendly testing suite that mocks Ollama and verifies streaming SSE and metrics responses.
 * **`scripts/chaos_test.sh`**: Automated chaos injection script simulating Qdrant database pod failure and cluster worker node outages to verify SLA uptime.
+* **`tests/load_test.py`**: Locust load testing script measuring SSE streaming latency, TTFT, and total durations.
+* **`scripts/run_load_test.sh`**: Helper script to install Locust and execute UI-based or headless CLI load tests.
 * **`phases.md`**: Tracks progress checklist across all five development stages.
 * **`interview_notes.md`**: Log of design justifications, files, and concept cheat-sheet.
 * **`README.md`**: Standard documentation introducing layout, quickstart, and testing command pipelines.

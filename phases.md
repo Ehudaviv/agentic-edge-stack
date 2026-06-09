@@ -45,7 +45,7 @@ This document details the phases we will follow to complete the AI Platform DevO
   * [x] **Track A**: Inject Modelfile configuration for Ollama (e.g. quantization parameters, max token configurations).
   * [x] **Track B**: Deploy Prometheus + Grafana and Loki/Promtail (or Grafana Agent) to scrape agent `/metrics` and aggregate container logs. Configure custom dashboards.
   * [x] **Track C**: Write `scripts/chaos_test.sh` to inject pod failures, high CPU load, and network latency.
-  * [ ] **Track E**: Write `tests/load_test.py` with Locust simulating streaming concurrent `/chat` requests.
+  * [x] **Track E**: Write `tests/load_test.py` with Locust simulating streaming concurrent `/chat` requests.
 
 ## Phase 5: Verification, Tuning, and README Documentation
 * **Objective**: Run verification scripts, analyze metrics, and prepare the submission.
