@@ -172,7 +172,7 @@ To deploy the Prometheus, Grafana, and Loki monitoring stacks using the local of
 
 ### Step 6: Run Chaos Resiliency Tests (Phase 4, Track C)
 
-We provide an automated chaos injection script that tests the fault-tolerance and self-healing behaviors of both the FastAPI Agent and the Kubernetes nodes.
+We provide an automated chaos injection script that tests the fault-tolerance and self-healing behaviors of both the FastAPI Agent and the database pods.
 
 To run the automated chaos tests, execute:
 ```bash
@@ -183,6 +183,46 @@ To run the automated chaos tests, execute:
 1. **Database Outage Resilience (Scenario 1)**:
    * The script launches a background client stream querying the agent `/chat` endpoint, then deletes the active database pod (`qdrant-0`).
    * **Resilience Behavior**: The agent automatically fails over to the mock fact lookup database inside `tools.py`. The stream completes successfully without throwing HTTP 5xx errors or dropping client connections. Kubernetes automatically restarts the `qdrant-0` pod, and the database heals back to full readiness.
-2. **Infrastructure Node Failure (Scenario 2)**:
-   * The script queries `/chat` continuously while shutting down a worker node hosting application pods (`k3d node stop k3d-agentic-edge-stack-agent-0`).
-   * **Resilience Behavior**: Kubernetes immediately reroutes traffic to active replicas on the healthy node (`k3d-agentic-edge-stack-agent-1`). Client requests experience zero service interruption. The node is restarted (`k3d node start`) and cluster capacity is restored.
+2. **FastAPI Agent Pod Failure (Scenario 2)**:
+   * The script queries `/chat` continuously while forcefully deleting one of the active agent replica pods.
+   * **Resilience Behavior**: Kubernetes immediately reroutes traffic to the other healthy replica pod. Client requests experience zero service interruption. The deployment controller automatically schedules a new pod to restore the replica count back to the HPA minimum.
+
+#### How to Replicate the Chaos Scenarios Manually:
+
+##### Manually Replicate Scenario 1 (Database Outage):
+1. Start a continuous query loop in one terminal to poll the agent `/chat` endpoint:
+   ```bash
+   while true; do
+     curl -s -X POST http://localhost:30000/chat \
+       -H "Content-Type: application/json" \
+       -d '{"message": "What is k3d?"}' | grep -o '"token": "[^"]*"' | tr -d '\n'
+     echo ""
+     sleep 1
+   done
+   ```
+2. In a second terminal, delete the active Qdrant pod:
+   ```bash
+   kubectl delete pod qdrant-0 -n agentic-edge-stack --now
+   ```
+3. **Observe**: The terminal running the query loop continues streaming responses uninterrupted. Look at the logs of the FastAPI app (`kubectl logs -f deployment/agent-app -n agentic-edge-stack -c agent`) to confirm it detects the database connection failure and triggers the mock fallback.
+4. Verify that Kubernetes brings `qdrant-0` back online:
+   ```bash
+   kubectl wait --for=condition=Ready pod/qdrant-0 -n agentic-edge-stack --timeout=60s
+   ```
+
+##### Manually Replicate Scenario 2 (Agent Pod Failure):
+1. Keep the continuous query loop running in your first terminal.
+2. In the second terminal, fetch the name of one of the active agent app pods:
+   ```bash
+   AGENT_POD=$(kubectl get pods -n agentic-edge-stack -l app=agent-app -o jsonpath='{.items[0].metadata.name}')
+   echo "Targeting pod: $AGENT_POD"
+   ```
+3. Force-delete the target pod:
+   ```bash
+   kubectl delete pod "$AGENT_POD" -n agentic-edge-stack --now
+   ```
+4. **Observe**: The query loop continues to receive streamed tokens without dropping connections because Kubernetes immediately directs incoming traffic to the other healthy replica.
+5. Verify that a new replica pod is created automatically:
+   ```bash
+   kubectl rollout status deployment/agent-app -n agentic-edge-stack
+   ```
