@@ -5,6 +5,6 @@ metadata:
   namespace: {{ .Values.namespace }}
 data:
   LLM_URL: "http://ollama-service:{{ .Values.ollama.servicePort }}"
-  LLM_MODEL: {{ .Values.ollama.modelName | quote }}
+  LLM_MODEL: {{ .Values.ollama.tunedModelName | quote }}
   QDRANT_URL: "http://qdrant-service:{{ .Values.qdrant.servicePort }}"
   QDRANT_COLLECTION: "knowledge_base"

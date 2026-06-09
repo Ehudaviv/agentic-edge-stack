@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ollama-config
+  namespace: {{ .Values.namespace }}
+data:
+  Modelfile: |
+    FROM {{ .Values.ollama.modelName }}
+    
+    # Advanced Inference Tuning Parameters (Track A)
+    PARAMETER temperature 0.2
+    PARAMETER num_ctx 2048
+    PARAMETER top_p 0.9
+    PARAMETER top_k 40
+    PARAMETER num_predict 512
+    
+    # Custom system prompt optimized for this MLOps assistant cluster
+    SYSTEM You are a precise and extremely concise MLOps Assistant for the Agentic Edge Stack. Keep answers brief and factual.

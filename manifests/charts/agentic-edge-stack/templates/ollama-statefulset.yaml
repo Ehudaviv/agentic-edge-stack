@@ -41,6 +41,9 @@ spec:
               # Attempt to pull the model (will skip/fast-forward if already on PV disk)
               /bin/ollama pull {{ .Values.ollama.modelName }}
               
+              echo "Creating custom tuned model {{ .Values.ollama.tunedModelName }} from Modelfile..."
+              /bin/ollama create {{ .Values.ollama.tunedModelName }} -f /etc/ollama/Modelfile
+              
               echo "Ollama server initialization complete. Keeping server in foreground..."
               wait
           livenessProbe:
@@ -57,6 +60,8 @@ spec:
           volumeMounts:
             - name: ollama-storage
               mountPath: /root/.ollama
+            - name: ollama-config-volume
+              mountPath: /etc/ollama
           resources:
             {{- toYaml .Values.ollama.resources | nindent 12 }}
       volumes:
@@ -67,3 +72,6 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        - name: ollama-config-volume
+          configMap:
+            name: ollama-config

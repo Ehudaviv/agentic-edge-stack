@@ -42,7 +42,7 @@ This document details the phases we will follow to complete the AI Platform DevO
 ## Phase 4: Advanced Tracks & Observability Setup
 * **Objective**: Set up observability, load testing, chaos scenarios, and model optimizations.
 * **Tasks**:
-  * [ ] **Track A**: Inject Modelfile configuration for Ollama (e.g. quantization parameters, max token configurations).
+  * [x] **Track A**: Inject Modelfile configuration for Ollama (e.g. quantization parameters, max token configurations).
   * [ ] **Track B**: Deploy Prometheus + Grafana and Loki/Promtail (or Grafana Agent) to scrape agent `/metrics` and aggregate container logs. Configure custom dashboards.
   * [ ] **Track C**: Write `scripts/chaos_test.sh` to inject pod failures, high CPU load, and network latency.
   * [ ] **Track E**: Write `tests/load_test.py` with Locust simulating streaming concurrent `/chat` requests.

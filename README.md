@@ -105,4 +105,24 @@ kubectl get pods -n argocd
    kubectl apply -f gitops/application.yaml
    ```
 
+### Step 4: Verify Custom Inference Tuning (Phase 4, Track A)
 
+Once deployed, you can verify that the custom `Modelfile` parameters and the tuned model have been initialized successfully:
+
+1. **Verify the tuned model exists**:
+   ```bash
+   kubectl exec -it ollama-0 -n agentic-edge-stack -- ollama list
+   ```
+   *Expected Output*: Should show both the base model `qwen2.5:0.5b` and the tuned model `tuned-agent`.
+
+2. **Inspect the tuned model details and system parameters**:
+   ```bash
+   kubectl exec -it ollama-0 -n agentic-edge-stack -- ollama show tuned-agent
+   ```
+   *Expected Output*: Displays the system prompt and custom parameters (like `temperature 0.2` and `num_ctx 2048`) defined in the Modelfile.
+
+3. **Verify the Agent is running queries against the tuned model**:
+   Perform a SSE chat query and inspect the agent application logs to verify it targets `tuned-agent`:
+   ```bash
+   kubectl logs -f deployment/agent-app -n agentic-edge-stack -c agent
+   ```

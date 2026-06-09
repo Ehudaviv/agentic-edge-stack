@@ -54,11 +54,48 @@ This document tracks our architectural decisions, justifications, and key concep
 * **Concept**: HPA automatically scales the number of Pods in a replication controller, deployment, or replica set based on observed CPU utilization (or custom metrics).
 * **Why it matters**: MLOps workloads are highly variable. By using HPA, we ensure the FastAPI agent scales out to handle spikes in traffic and scales down to save costs when idle.
 
-### LLM Quantization Formats (GGUF, AWQ, GPTQ)
-* **GGUF (GPT-Generated Unified Format)**: Optimized for CPU + GPU execution. It is single-file based and supports split-offloading. Best for local development and CPU environments.
-* **AWQ (Activation-aware Weight Quantization)**: Highly optimized for GPU execution. It keeps the activation distribution intact to minimize accuracy loss.
-* **GPTQ (Generalized Post-Training Quantization)**: Another GPU-centric format, focusing on 4-bit quantization with minimal loss in quality.
-* **FP8**: 8-bit floating point format natively supported by newer GPUs (NVIDIA Hopper/Ada Lovelace), offering near-FP16 performance with half the memory footprint and no retraining.
+### LLM Quantization Formats & Trade-offs (Track A)
+Quantization reduces the precision of model weights (e.g., from 16-bit floating point `FP16` to 4-bit or 8-bit integers) to compress the model size and lower the VRAM/RAM required for serving.
+
+1. **GGUF (GPT-Generated Unified Format)**:
+   * **Target Hardware**: Optimally designed for CPU-only or hybrid CPU+GPU systems.
+   * **Mechanism**: A unified single-file binary format that supports *split-offloading* (loading part of the layers into GPU VRAM and keeping the rest in system RAM).
+   * **Pros/Cons**: Extremely flexible for local execution. Minor latency degradation when splitting across memory architectures, but makes large model execution possible on non-specialized hardware.
+   * **Our Usage**: Ollama uses GGUF natively. We run a 4-bit quantized Qwen 2.5 (0.5B) model, which only requires around 350-400MB of total memory, running at exceptionally high token throughput on raw CPU nodes.
+
+2. **AWQ (Activation-aware Weight Quantization)**:
+   * **Target Hardware**: GPU-only environments (e.g., serving via vLLM or TensorRT-LLM).
+   * **Mechanism**: Observes weight activations during training and protects the top 1% "salient" weights (which contain critical information) by keeping them in higher precision, while quantizing the remaining 99% to 4-bit.
+   * **Pros/Cons**: Excellent accuracy preservation. Significant speedup on GPUs compared to generic quantization. Not suitable for CPU execution.
+
+3. **GPTQ (Generalized Post-Training Quantization)**:
+   * **Target Hardware**: GPU-only environments.
+   * **Mechanism**: Employs mathematical layer-by-layer optimization (based on the Hessian matrix) to adjust the remaining weights after quantizing to minimize error.
+   * **Pros/Cons**: Extremely fast token-generation speed (decoding throughput). AWQ generally performs slightly better at retaining model reasoning capability for very small models, but GPTQ is highly competitive.
+
+4. **FP8 (8-bit Floating Point)**:
+   * **Target Hardware**: Modern server-grade GPUs (NVIDIA Ada Lovelace, Hopper, Blackwell architectures).
+   * **Mechanism**: Uses native 8-bit floating point representations (E4M3 or E5M2 formats) instead of integers.
+   * **Pros/Cons**: Supported natively at the hardware level in Tensor Cores. Provides near-FP16 accuracy with a 2x reduction in memory footprint and high computation speed, with no post-training processing required.
+
+---
+
+### Inference Engine Parameter Tuning & Optimization (Track A)
+In production, model serving engines must be tuned to maximize throughput and limit resource saturation. Through our custom `Modelfile` mounted in the cluster, we tuned the following:
+
+* **`PARAMETER num_ctx 2048` (Context Window Size)**:
+  * *Default*: Usually 4096 or 8192 tokens.
+  * *MLOps Impact*: The memory occupied by the Key-Value (KV) cache grows linearly with the context length and batch size. Reducing the context size to 2048 significantly decreases the VRAM/RAM allocation footprint of the model runner, ensuring that multiple concurrent client requests do not cause out-of-memory (OOM) crashes on resource-constrained K3d worker nodes.
+* **`PARAMETER temperature 0.2` (Creativity / Randomness)**:
+  * *MLOps Impact*: Lower temperature values make the model output deterministic by selecting high-probability tokens. For AI agent architectures that rely on tool calling, deterministic outputs are critical to prevent tool parameter hallucination and schema parsing failures.
+* **`PARAMETER num_predict 512` (Safety Token Cap)**:
+  * *MLOps Impact*: Enforces a hard limit on the maximum number of tokens generated per request. This acts as a safety guardrail, preventing looping generation states (caused by small model confusion) from consuming CPU cycles and blocking the inference queue indefinitely.
+* **`PARAMETER top_p 0.9` & `top_k 40` (Token Sampling Filters)**:
+  * *MLOps Impact*: Controls the vocabulary candidate pool during generation, filtering out noisy, low-probability tokens to maintain output coherence.
+* **`SYSTEM` Prompt Injection**:
+  * *MLOps Impact*: Injects structural instructions directly at the model compiler layer rather than appending them in the API wrapper. This saves token overhead on every chat turn, reducing TTFT (Time-to-First-Token).
+
+---
 
 ---
 
