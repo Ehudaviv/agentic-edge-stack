@@ -170,4 +170,19 @@ To deploy the Prometheus, Grafana, and Loki monitoring stacks using the local of
      * **Ollama & Qdrant Resource Footprints**: Individual CPU and Memory charts for the LLM runner and Vector DB.
      * **Loki Logs**: Embedded panels showing real-time log outputs for both FastAPI and Ollama containers.
 
+### Step 6: Run Chaos Resiliency Tests (Phase 4, Track C)
 
+We provide an automated chaos injection script that tests the fault-tolerance and self-healing behaviors of both the FastAPI Agent and the Kubernetes nodes.
+
+To run the automated chaos tests, execute:
+```bash
+./scripts/chaos_test.sh
+```
+
+#### What the Chaos Test Verifies:
+1. **Database Outage Resilience (Scenario 1)**:
+   * The script launches a background client stream querying the agent `/chat` endpoint, then deletes the active database pod (`qdrant-0`).
+   * **Resilience Behavior**: The agent automatically fails over to the mock fact lookup database inside `tools.py`. The stream completes successfully without throwing HTTP 5xx errors or dropping client connections. Kubernetes automatically restarts the `qdrant-0` pod, and the database heals back to full readiness.
+2. **Infrastructure Node Failure (Scenario 2)**:
+   * The script queries `/chat` continuously while shutting down a worker node hosting application pods (`k3d node stop k3d-agentic-edge-stack-agent-0`).
+   * **Resilience Behavior**: Kubernetes immediately reroutes traffic to active replicas on the healthy node (`k3d-agentic-edge-stack-agent-1`). Client requests experience zero service interruption. The node is restarted (`k3d node start`) and cluster capacity is restored.

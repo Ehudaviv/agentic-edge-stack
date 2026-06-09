@@ -124,8 +124,18 @@ To trace streaming requests and diagnose performance bottlenecks (e.g., latency 
      * **HTTP Request Rates (SLA Volume)**: Identifies user traffic patterns, service load, and errors. A sudden surge in 5xx status codes highlights backend connectivity issues with Ollama or Qdrant.
      * **FastAPI Request Latency (p95 & p99)**: In a streaming LLM setup, tracking average latency is misleading because LLM token generation times vary heavily by query context. Percentiles (p95, p99) capture the worst-case user experience (latency bottlenecks, queue stalls) and help evaluate LLM response consistency.
      * **Ollama & Qdrant Resource Footprints**: Distinguishes application bottlenecks from infrastructure bottle-necks. Since LLM serving is heavily CPU/GPU bound, monitoring Ollama metrics indicates if we are queueing requests due to LLM hardware limitations, while Qdrant metrics track database indexing efficiency.
-   * **Where logs are shown**:
-     * Log streams are embedded directly **inside the Grafana Dashboard** on a dedicated row beneath the metrics charts. They use Loki's LogQL queries to pull container logs for both `agent-app` and `ollama` side-by-side. This allows developers to instantly correlate visual metric anomalies (e.g., a p99 latency spike or HTTP 500 error) with the exact container stderr/stdout logs in real time.
+    * **Where logs are shown**:
+      * Log streams are embedded directly **inside the Grafana Dashboard** on a dedicated row beneath the metrics charts. They use Loki's LogQL queries to pull container logs for both `agent-app` and `ollama` side-by-side. This allows developers to instantly correlate visual metric anomalies (e.g., a p99 latency spike or HTTP 500 error) with the exact container stderr/stdout logs in real time.
+
+### Chaos Engineering & Graceful Fallbacks (Track C)
+To prove the production readiness of our architecture under failure, we simulate two high-impact infrastructure disruptions:
+
+1. **Vector DB Pod Failure**:
+   * *The Chaos*: Forcefully deleting the `qdrant-0` pod during an active user query stream.
+   * *Our Resiliency Design*: In `src/app/tools.py`, we implement a robust error handling fallback. If the Qdrant connection times out or query executions fail, the FastAPI Agent intercepts the error, falls back to a local mock Facts lookup (serving cached fact responses), and passes the results to Ollama. The client continues to stream response tokens seamlessly without receiving 500 errors. Once Kubernetes self-heals and restarts the Qdrant pod, the agent automatically reconnects on the next query.
+2. **Worker Node Outage**:
+   * *The Chaos*: Powering down a worker node (`k3d node stop k3d-agentic-edge-stack-agent-0`) hosting active application pods.
+   * *Our Resiliency Design*: We configure our agent application with 4 replicas distributed across multiple cluster worker nodes. When a node failure is detected, Kubernetes dynamically marks the node as `NotReady` and immediately routes all incoming service traffic to the active replicas running on the healthy node (`k3d-agentic-edge-stack-agent-1`). Once the stopped node is restarted, Kubernetes re-registers it and redistributes replicas back to the node automatically.
 
 ---
 
@@ -148,6 +158,7 @@ To trace streaming requests and diagnose performance bottlenecks (e.g., latency 
 * **`src/app/agent.py`**: Implements the native Python tool-calling loop using standard async HTTPX connections to Ollama.
 * **`src/app/main.py`**: FastAPI server initialization, SSE `/chat` stream implementation, and Prometheus metrics binding.
 * **`scripts/validate_agent.py`**: Offline-friendly testing suite that mocks Ollama and verifies streaming SSE and metrics responses.
+* **`scripts/chaos_test.sh`**: Automated chaos injection script simulating Qdrant database pod failure and cluster worker node outages to verify SLA uptime.
 * **`phases.md`**: Tracks progress checklist across all five development stages.
 * **`interview_notes.md`**: Log of design justifications, files, and concept cheat-sheet.
 * **`README.md`**: Standard documentation introducing layout, quickstart, and testing command pipelines.
