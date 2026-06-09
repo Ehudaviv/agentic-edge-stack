@@ -103,6 +103,9 @@ In production, model serving engines must be tuned to maximize throughput and li
 * *Be ready to explain how your `bootstrap.sh` ties the whole stack together.*
 * *Be ready to explain why we use ConfigMaps for configuration and Secrets for API keys.*
 * *Be ready to explain GitOps: "Why ArgoCD?" (ArgoCD continuously monitors the Git repository and reconciles any drift in the live Kubernetes cluster, enabling automated, declarative, version-controlled rollouts).*
+* *Be ready to explain how Ollama handles custom model creation efficiently without duplicating storage or RAM/VRAM resource usage*:
+  * **Layer Deduplication**: Ollama stores model parameters as content-addressable blobs (similar to Docker layers). Creating `tuned-agent` via a `Modelfile` with `FROM qwen2.5:0.5b` does *not* copy the weight files. Instead, it creates a lightweight pointer metadata file referencing the exact same weight blobs already present on disk.
+  * **On-Demand Memory Allocation**: Ollama loads models dynamically only when they are queried. While idle, the base model `qwen2.5:0.5b` consumes zero RAM/VRAM. When `tuned-agent` is active, it occupies only its single instance allocation, leaving no double-loading footprints.
 
 ---
 
