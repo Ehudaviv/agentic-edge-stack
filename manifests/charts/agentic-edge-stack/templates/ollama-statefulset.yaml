@@ -28,8 +28,9 @@ spec:
             - "/bin/sh"
             - "-c"
             - |
-              echo "Starting Ollama server..."
+              echo "Starting background Ollama daemon for pre-warming..."
               /bin/ollama serve &
+              OLLAMA_PID=$!
               
               # Wait for server socket to open
               until /bin/ollama list >/dev/null 2>&1; do
@@ -44,8 +45,12 @@ spec:
               echo "Creating custom tuned model {{ .Values.ollama.tunedModelName }} from Modelfile..."
               /bin/ollama create {{ .Values.ollama.tunedModelName }} -f /etc/ollama/Modelfile
               
-              echo "Ollama server initialization complete. Keeping server in foreground..."
-              wait
+              echo "Stopping pre-warming daemon..."
+              kill $OLLAMA_PID
+              wait $OLLAMA_PID || true
+              
+              echo "Starting Ollama server in foreground..."
+              exec /bin/ollama serve
           livenessProbe:
             tcpSocket:
               port: http
