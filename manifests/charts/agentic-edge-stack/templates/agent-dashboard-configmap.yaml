@@ -34,7 +34,10 @@ data:
           "id": 1,
           "type": "timeseries",
           "title": "FastAPI Agent Pods CPU Utilization",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -43,7 +46,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"agentic-edge-stack\", container=\"agent-app\"}[2m])) by (pod)",
               "legendFormat": "{{ "{{" }}pod{{ "}}" }}",
               "refId": "A"
@@ -64,7 +70,10 @@ data:
           "id": 2,
           "type": "timeseries",
           "title": "FastAPI Agent Pods Memory Utilization",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -73,7 +82,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(container_memory_working_set_bytes{namespace=\"agentic-edge-stack\", container=\"agent-app\"}) by (pod)",
               "legendFormat": "{{ "{{" }}pod{{ "}}" }}",
               "refId": "A"
@@ -94,7 +106,10 @@ data:
           "id": 3,
           "type": "timeseries",
           "title": "FastAPI Agent HTTP Request Rate",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -103,7 +118,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(rate(http_requests_total{namespace=\"agentic-edge-stack\"}[2m])) by (handler, status, method)",
               "legendFormat": "{{ "{{" }}method{{ "}}" }} {{ "{{" }}handler{{ "}}" }} ({{ "{{" }}status{{ "}}" }})",
               "refId": "A"
@@ -124,7 +142,10 @@ data:
           "id": 4,
           "type": "timeseries",
           "title": "FastAPI Agent /chat Request Latency",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -133,13 +154,19 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"agentic-edge-stack\", handler=\"/chat\"}[2m])) by (le))",
               "legendFormat": "p95 Latency",
               "refId": "A"
             },
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"agentic-edge-stack\", handler=\"/chat\"}[2m])) by (le))",
               "legendFormat": "p99 Latency",
               "refId": "B"
@@ -160,7 +187,10 @@ data:
           "id": 5,
           "type": "timeseries",
           "title": "Ollama Pod CPU",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 6,
@@ -169,7 +199,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"agentic-edge-stack\", container=\"ollama\"}[2m])) by (pod)",
               "legendFormat": "{{ "{{" }}pod{{ "}}" }} CPU",
               "refId": "A"
@@ -190,7 +223,10 @@ data:
           "id": 6,
           "type": "timeseries",
           "title": "Ollama Pod Memory",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 6,
@@ -199,7 +235,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(container_memory_working_set_bytes{namespace=\"agentic-edge-stack\", container=\"ollama\"}) by (pod)",
               "legendFormat": "{{ "{{" }}pod{{ "}}" }} Memory",
               "refId": "A"
@@ -220,7 +259,10 @@ data:
           "id": 7,
           "type": "timeseries",
           "title": "Qdrant Pod CPU",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 6,
@@ -229,7 +271,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"agentic-edge-stack\", container=\"qdrant\"}[2m])) by (pod)",
               "legendFormat": "{{ "{{" }}pod{{ "}}" }} CPU",
               "refId": "A"
@@ -250,7 +295,10 @@ data:
           "id": 8,
           "type": "timeseries",
           "title": "Qdrant Pod Memory",
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "gridPos": {
             "h": 8,
             "w": 6,
@@ -259,7 +307,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "sum(container_memory_working_set_bytes{namespace=\"agentic-edge-stack\", container=\"qdrant\"}) by (pod)",
               "legendFormat": "{{ "{{" }}pod{{ "}}" }} Memory",
               "refId": "A"
@@ -280,7 +331,10 @@ data:
           "id": 9,
           "type": "logs",
           "title": "FastAPI Agent Pod Logs",
-          "datasource": "Loki",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -289,7 +343,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Loki",
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
               "expr": "{namespace=\"agentic-edge-stack\", container=\"agent-app\"}",
               "queryType": "range",
               "refId": "A"
@@ -308,7 +365,10 @@ data:
           "id": 10,
           "type": "logs",
           "title": "Ollama Inference Pod Logs",
-          "datasource": "Loki",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -317,7 +377,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Loki",
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
               "expr": "{namespace=\"agentic-edge-stack\", container=\"ollama\"}",
               "queryType": "range",
               "refId": "A"
