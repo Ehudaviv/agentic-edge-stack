@@ -7,12 +7,60 @@ spec:
   project: default
   source:
     # Points to your GitHub repository
-    repoURL: 'https://github.com/ehudaviv/agentic-edge-stack.git'
+    repoURL: 'https://github.com/Ehudaviv/agentic-edge-stack.git'
     targetRevision: HEAD
     path: manifests/charts/agentic-edge-stack
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: agentic-edge-stack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Ehudaviv/agentic-edge-stack.git'
+    targetRevision: HEAD
+    path: manifests/monitoring/kube-prometheus-stack
+    helm:
+      valueFiles:
+        - ../prometheus-values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Ehudaviv/agentic-edge-stack.git'
+    targetRevision: HEAD
+    path: manifests/monitoring/loki-stack
+    helm:
+      valueFiles:
+        - ../loki-values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true

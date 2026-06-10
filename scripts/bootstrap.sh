@@ -6,6 +6,11 @@ REGISTRY_NAME="registry.localhost"
 REGISTRY_PORT="5001"
 IMAGE_TAG="localhost:${REGISTRY_PORT}/agent-app:latest"
 
+# Set up a temporary DOCKER_CONFIG directory to bypass host credential helper failures
+# when pushing to the local unauthenticated registry.
+export DOCKER_CONFIG="$(mktemp -d)"
+trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+
 echo "========================================================="
 echo "        Bootstrapping The Agentic Edge Stack"
 echo "========================================================="
@@ -39,7 +44,6 @@ if [ "$INFRA_ONLY" != "true" ]; then
   # 2. Cleanup existing cluster if any
   echo "Cleaning up any existing cluster named '$CLUSTER_NAME'..."
   k3d cluster delete "$CLUSTER_NAME" || true
-  k3d registry delete "$REGISTRY_NAME" || true
 
   # 3. Create the cluster and registry
   echo "Creating k3d registry..."
@@ -100,21 +104,29 @@ if [ "$INFRA_ONLY" != "true" ]; then
     "docker.io/busybox:1.33"
   )
 
+  # Detect host architecture to ensure platform compatibility (AMD64 vs ARM64)
+  ARCH=$(uname -m)
+  if [ "$ARCH" = "x86_64" ]; then
+    PLATFORM="linux/amd64"
+  elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    PLATFORM="linux/arm64"
+  else
+    PLATFORM="linux/amd64"
+  fi
+
   for img in "${IMAGES_TO_IMPORT[@]}"; do
     if ! docker image inspect "$img" >/dev/null 2>&1; then
       echo "Image $img not found locally on host. Pulling..."
-      docker pull "$img"
+      docker pull --platform "$PLATFORM" "$img"
     fi
   done
 
-  echo "Importing offline cached images into k3d nodes..."
-  nodes=$(k3d node list --no-headers | awk '{print $1}' | grep "$CLUSTER_NAME" | grep -v -E 'tools|serverlb')
-  for node in $nodes; do
-    echo "Importing images to node: $node"
-    for img in "${IMAGES_TO_IMPORT[@]}"; do
-      echo "  Importing $img..."
-      docker save "$img" | docker exec -i "$node" ctr -n k8s.io images import - || true
-    done
+  echo "Tagging and pushing offline images to local registry..."
+  for img in "${IMAGES_TO_IMPORT[@]}"; do
+    local_tag="localhost:5001/${img}"
+    echo "  Re-packaging and pushing $img to local registry..."
+    echo "FROM $img" | docker build --platform "$PLATFORM" -t "$local_tag" -
+    docker push "$local_tag"
   done
 fi
 
@@ -122,7 +134,10 @@ fi
 # 7. Install ArgoCD in the cluster
 echo "Deploying ArgoCD..."
 kubectl create namespace argocd || true
-kubectl apply -n argocd -f gitops/argocd-install.yaml --server-side --force-conflicts
+sed -e 's|quay.io/argoproj/argocd:|k3d-registry.localhost:5001/quay.io/argoproj/argocd:|g' \
+    -e 's|ghcr.io/dexidp/dex:|k3d-registry.localhost:5001/ghcr.io/dexidp/dex:|g' \
+    -e 's|public.ecr.aws/docker/library/redis:|k3d-registry.localhost:5001/public.ecr.aws/docker/library/redis:|g' \
+    gitops/argocd-install.yaml | kubectl apply -n argocd -f - --server-side --force-conflicts
 
 echo "Patching ArgoCD server to NodePort 30080..."
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 8080, "nodePort": 30080, "name": "http"}, {"port": 443, "targetPort": 8080, "nodePort": 30443, "name": "https"}]}}'

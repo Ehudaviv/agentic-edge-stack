@@ -1,16 +1,19 @@
 prometheusOperator:
   image:
-    repository: prometheus-operator/prometheus-operator
+    registry: k3d-registry.localhost:5001
+    repository: quay.io/prometheus-operator/prometheus-operator
     tag: v0.91.0
   prometheusConfigReloader:
     image:
-      repository: prometheus-operator/prometheus-config-reloader
+      registry: k3d-registry.localhost:5001
+      repository: quay.io/prometheus-operator/prometheus-config-reloader
       tag: v0.91.0
 
 prometheus:
   prometheusSpec:
     image:
-      repository: prometheus/prometheus
+      registry: k3d-registry.localhost:5001
+      repository: quay.io/prometheus/prometheus
       tag: v3.12.0-distroless
     # Make sure Prometheus Operator discovers our ServiceMonitor / PodMonitor without filtering namespace
     podMonitorSelectorNilUsesHelmValues: false
@@ -20,26 +23,31 @@ prometheus:
 alertmanager:
   alertmanagerSpec:
     image:
-      repository: prometheus/alertmanager
+      registry: k3d-registry.localhost:5001
+      repository: quay.io/prometheus/alertmanager
       tag: v0.32.2
 
 nodeExporter:
   image:
-    repository: prometheus/node-exporter
+    registry: k3d-registry.localhost:5001
+    repository: quay.io/prometheus/node-exporter
     tag: v1.11.1-distroless
 
 kube-state-metrics:
   image:
-    repository: kube-state-metrics/kube-state-metrics
+    registry: k3d-registry.localhost:5001
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
     tag: v2.19.0
 
 grafana:
   image:
+    registry: k3d-registry.localhost:5001
     repository: grafana/grafana
     tag: 13.0.1-security-01
   sidecar:
     image:
-      repository: kiwigrid/k8s-sidecar
+      registry: k3d-registry.localhost:5001
+      repository: quay.io/kiwigrid/k8s-sidecar
       tag: "2.7.3"
   service:
     type: NodePort

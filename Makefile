@@ -72,14 +72,17 @@ clean:
 		helm uninstall loki-stack -n monitoring || true; \
 		kubectl delete namespace monitoring || true; \
 	else \
-		echo "Tearing down cluster and local registry..."; \
+		echo "Tearing down cluster (keeping local registry container for persistent cache)..."; \
 		k3d cluster delete agentic-edge-stack || true; \
-		k3d registry delete registry.localhost || true; \
 	fi
 	@echo "Terminating any lingering kubectl port-forward or locust processes..."
 	@pkill -f "[p]ort-forward" || true
 	@pkill -f "[l]ocust" || true
 	@echo "Environment cleaned."
+
+clean-all: clean
+	@echo "Tearing down local registry container..."
+	@k3d registry delete registry.localhost || true
 
 clean-infra:
 	@$(MAKE) clean INFRA_ONLY=true

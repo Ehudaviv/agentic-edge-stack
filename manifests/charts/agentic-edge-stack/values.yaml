@@ -31,7 +31,7 @@ agent:
 # Component 2: Ollama Inference Server
 ollama:
   replicaCount: 1
-  image: "ollama/ollama:latest"
+  image: "k3d-registry.localhost:5001/ollama/ollama:latest"
   imagePullPolicy: IfNotPresent
   containerPort: 11434
   servicePort: 11434
@@ -56,7 +56,7 @@ ollama:
 # Component 3: Qdrant Vector Store
 qdrant:
   replicaCount: 1
-  image: "qdrant/qdrant:latest"
+  image: "k3d-registry.localhost:5001/qdrant/qdrant:latest"
   imagePullPolicy: IfNotPresent
   containerPort: 6333
   servicePort: 6333
