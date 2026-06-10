@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -6,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
 
+import httpx
+from contextlib import asynccontextmanager
 from app.config import settings
 from app.agent import run_agent_stream
 
@@ -16,11 +19,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger("app.main")
 
+async def pre_warm_llm():
+    """
+    Asynchronously sends a dummy request to Ollama to pre-warm the model
+    and load its weights into memory, avoiding cold-start latency for users.
+    """
+    await asyncio.sleep(2)  # Short delay to allow network/endpoints to stabilize
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            logger.info(f"Triggering background pre-warming for LLM model: {settings.llm_model} at {settings.llm_url}")
+            response = await client.post(
+                f"{settings.llm_url}/api/chat",
+                json={
+                    "model": settings.llm_model,
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "stream": False
+                }
+            )
+            if response.status_code == 200:
+                logger.info(f"LLM model '{settings.llm_model}' pre-warmed successfully!")
+            else:
+                logger.warning(f"LLM pre-warming returned status code {response.status_code}: {response.text}")
+    except Exception as e:
+        logger.warning(f"Failed to pre-warm LLM model: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: trigger background model pre-warming task
+    import asyncio
+    asyncio.create_task(pre_warm_llm())
+    yield
+
 # Initialize FastAPI application
 app = FastAPI(
     title="Agentic Edge Stack - AI Agent Service",
     description="Primary backend microservice orchestrating LLM tool-calling and vector search.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for frontend flexibility
