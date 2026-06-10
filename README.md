@@ -40,9 +40,9 @@ This project showcases a complete end-to-end cloud-native implementation of loca
 │   │       ├── Chart.yaml             # Chart metadata
 │   │       ├── values.yaml            # Configurable service parameters & resource specs
 │   │       └── templates/             # Deployments, StatefulSets, HPA, ConfigMaps, Secrets, PodMonitor
-│   └── monitoring/                    # Observability Helm packages and overrides
-│       ├── kube-prometheus-stack-86.2.0.tgz # Local Prom/Grafana Helm package
-│       ├── loki-stack-2.10.3.tgz            # Local Loki/Promtail Helm package
+│   └── monitoring/                    # Observability Helm configuration and directory charts
+│       ├── kube-prometheus-stack/     # Unpacked Kube-Prometheus stack chart (Option A GitOps)
+│       ├── loki-stack/                # Unpacked Loki stack directory chart (Option A GitOps)
 │       ├── prometheus-values.yaml     # Custom Prometheus/Grafana integrations values
 │       └── loki-values.yaml           # Loki offline adjustments values
 └── tests/                             # E2E load/performance testing
