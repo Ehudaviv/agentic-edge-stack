@@ -8,6 +8,23 @@ echo "========================================================="
 echo "       Waiting for Cluster Components Readiness"
 echo "========================================================="
 
+wait_for_namespace() {
+  local ns=$1
+  echo "Waiting for namespace '$ns' to be created..."
+  
+  # Wait up to 60 iterations (120 seconds / 2 minutes)
+  for i in {1..60}; do
+    if kubectl get ns "$ns" &>/dev/null; then
+      echo "  [OK] Namespace '$ns' exists."
+      return 0
+    fi
+    sleep 2
+  done
+  
+  echo "  [ERROR] Timeout waiting for namespace '$ns' to be created."
+  return 1
+}
+
 wait_for_pods() {
   local ns=$1
   echo "Checking pod readiness in namespace '$ns'..."
@@ -35,11 +52,11 @@ wait_for_pods() {
 }
 
 for ns in "${NAMESPACES[@]}"; do
-  # Check if namespace exists before waiting
-  if kubectl get ns "$ns" &>/dev/null; then
-    wait_for_pods "$ns"
-  else
-    echo "Namespace '$ns' does not exist yet. Skipping."
+  if ! wait_for_namespace "$ns"; then
+    exit 1
+  fi
+  if ! wait_for_pods "$ns"; then
+    exit 1
   fi
 done
 

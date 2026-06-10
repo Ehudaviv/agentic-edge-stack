@@ -12,7 +12,7 @@ agent:
   containerPort: 8000
   servicePort: 8000
   nodePort: 30000
-  apiKey: "secure-api-key-2026"
+  apiKey: ""
   
   resources:
     requests:

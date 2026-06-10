@@ -1,5 +1,5 @@
 # Makefile for Agentic Edge Stack lifecycle management
-.PHONY: help venv bootstrap monitoring wait up clean test test-cluster stress chaos all
+.PHONY: help venv bootstrap monitoring wait up clean clean-infra up-infra test test-cluster stress chaos all
 
 # Configurable load testing parameters
 USERS ?= 100
@@ -18,7 +18,9 @@ help:
 	@echo "  make monitoring    - Deploy observability stack (Prometheus, Grafana, Loki)"
 	@echo "  make wait          - Block until all pods in all namespaces are fully Ready"
 	@echo "  make up            - Build/provision cluster, deploy monitoring, and wait for readiness"
+	@echo "  make up-infra      - Fast redeploy of app and monitoring (keep cluster/registry)"
 	@echo "  make clean         - Destroy cluster, registry, and terminate port-forwards"
+	@echo "  make clean-infra   - Teardown only the app and monitoring namespaces (keep cluster)"
 	@echo "  make test          - Run local FastAPI offline validation tests using mock"
 	@echo "  make test-cluster  - Query the cluster NodePort API directly to verify E2E streaming"
 	@echo "  make stress        - Run Locust load tests in headless mode (headless)"
@@ -43,7 +45,7 @@ venv:
 bootstrap:
 	@echo "Executing cluster bootstrapping..."
 	@chmod +x scripts/bootstrap.sh
-	@./scripts/bootstrap.sh
+	@INFRA_ONLY=$${INFRA_ONLY:-$(INFRA_ONLY)} ./scripts/bootstrap.sh
 
 # 3. Deploy monitoring stack
 monitoring:
@@ -62,13 +64,28 @@ up: bootstrap monitoring wait
 
 # 6. Clean: Teardown environment
 clean:
-	@echo "Tearing down cluster and local registry..."
-	@k3d cluster delete agentic-edge-stack || true
-	@k3d registry delete registry.localhost || true
+	@if [ "$${INFRA_ONLY:-$(INFRA_ONLY)}" = "true" ]; then \
+		echo "Tearing down application and monitoring namespaces (keeping cluster)..."; \
+		kubectl delete -f gitops/application.yaml --ignore-not-found || true; \
+		kubectl delete namespace agentic-edge-stack || true; \
+		helm uninstall prometheus -n monitoring || true; \
+		helm uninstall loki-stack -n monitoring || true; \
+		kubectl delete namespace monitoring || true; \
+	else \
+		echo "Tearing down cluster and local registry..."; \
+		k3d cluster delete agentic-edge-stack || true; \
+		k3d registry delete registry.localhost || true; \
+	fi
 	@echo "Terminating any lingering kubectl port-forward or locust processes..."
 	@pkill -f "[p]ort-forward" || true
 	@pkill -f "[l]ocust" || true
 	@echo "Environment cleaned."
+
+clean-infra:
+	@$(MAKE) clean INFRA_ONLY=true
+
+up-infra:
+	@$(MAKE) up INFRA_ONLY=true
 
 # 7. Local Offline Test
 test: venv

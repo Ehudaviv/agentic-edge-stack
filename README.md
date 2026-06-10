@@ -74,15 +74,32 @@ Run `make help` to inspect available targets:
 * **`make help`**: Prints the help summary menu.
 * **`make venv`**: Prepares the local virtualenv and installs dependencies (FastAPI, Qdrant Client, Locust, etc.).
 * **`make clean`**: Deletes the local k3d cluster and registry, and stops lingering port-forwards.
+* **`make clean-infra`**: Teardowns only the application (`agentic-edge-stack`) and monitoring (`monitoring`) namespaces. Keeps the k3d cluster, registry, and all pre-imported offline images intact.
 * **`make bootstrap`**: Creates the cluster, builds/registers the Agent image, pre-pulls/caches all stack and monitoring images, and deploys ArgoCD.
 * **`make monitoring`**: Deploys kube-prometheus-stack and loki-stack.
-* **`make wait`**: Blocks execution until all pods are fully `Ready` across all cluster namespaces.
+* **`make wait`**: Blocks execution until all pods are fully `Ready` across all cluster namespaces (with robust namespace-polling).
 * **`make up`**: Runs `bootstrap`, `monitoring`, and `wait` sequentially (Full Setup).
+* **`make up-infra`**: Fast redeploy of the application code, ArgoCD application, and monitoring Helm charts without recreating the cluster, saving minutes of image import time.
 * **`make test`**: Runs local mock offline backend validation.
 * **`make test-cluster`**: Sends a POST request from the host to the NodePort service (`http://localhost:30000/chat`) to verify streaming.
 * **`make stress`**: Runs Locust load tests in headless mode (parameters like `USERS`, `SPAWN_RATE`, and `RUN_TIME` are configurable).
 * **`make chaos`**: Runs resiliency tests injecting Vector DB and Agent replica outages.
 * **`make all`**: Runs `clean`, `up`, `test`, `test-cluster`, `stress`, and `chaos` sequentially.
+
+---
+
+## Fast Development Loop (Infrastructure-Only Mode)
+
+If you are modifying the application code in `src/` or editing manifests, you don't need to rebuild the cluster and re-import all offline container images. You can use the fast infrastructure-only lifecycle targets:
+
+```bash
+# Tear down application and monitoring namespaces only:
+make clean-infra
+
+# Rebuild the FastAPI Agent container, deploy ArgoCD application and monitoring stack:
+make up-infra
+```
+This is fully automated and reduces the dev cycle reset time to seconds.
 
 ---
 
@@ -113,7 +130,11 @@ make test-cluster
 ### 4. Verify Observability & Dashboards
 * **Access Grafana Dashboard**:
   * Navigate to [http://localhost:30030](http://localhost:30030)
-  * **Username**: `admin` | **Password**: `admin`
+  * **Username**: `admin`
+  * **Password Retrieval Command**:
+    ```bash
+    kubectl -n monitoring get secret prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+    ```
   * Open the **MLOps - Agentic Edge Stack** dashboard.
   * You will see CPU/Memory allocations, FastAPI throughput/latency metrics, and Loki log streams for both the AI Agent and Ollama.
 
@@ -132,3 +153,35 @@ make stress RUN_TIME=2m
 ```
 * Monitor active scaling in terminal: `kubectl get hpa agent-hpa -n agentic-edge-stack -w`
 * Observe new container lines appearing on the CPU and Memory charts in Grafana.
+
+---
+
+## Troubleshooting: Inotify Limits (Loki / Promtail CrashLoopBackOff)
+
+If you see the `loki-stack-promtail` pods in `CrashLoopBackOff` state with the following error in their logs:
+`error="failed to make file target manager: too many open files"`
+
+This happens because the Linux host's default limit for inotify user instances (`fs.inotify.max_user_instances`) is too low (usually `128`) for clusters running multiple nodes/pods inside Docker containers on the same user session.
+
+### Solution
+
+We have automated this in-cluster. The Loki-Stack deployment configuration contains:
+1. **Namespace-Scoped Scrapes**: Restricts Promtail to only scrape log files from the `agentic-edge-stack` and `monitoring` namespaces (ignoring `kube-system` and `argocd`), which greatly limits the number of files watched.
+2. **Automated Init Container**: A privileged init container runs `sysctl -w fs.inotify.max_user_instances=512` at pod startup. Since the K3d node containers run in privileged mode on the host, this automatically configures the necessary kernel limits.
+
+**Fallback (Manual Host Application)**:
+If you need to manually apply this on your host machine:
+
+1. **Temporarily apply new limits**:
+   ```bash
+   sudo sysctl -w fs.inotify.max_user_instances=512
+   sudo sysctl -w fs.inotify.max_user_watches=524288
+   ```
+
+2. **Make the changes persistent** across system reboots:
+   ```bash
+   echo "fs.inotify.max_user_instances=512" | sudo tee -a /etc/sysctl.d/99-inotify.conf
+   echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.d/99-inotify.conf
+   sudo sysctl --system
+   ```
+

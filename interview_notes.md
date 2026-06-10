@@ -40,11 +40,12 @@ This document tracks our architectural decisions, justifications, and key concep
   * **Edge-case**: Small localized models (such as Qwen 2.5 0.5B under resource limits) sometimes hallucinate tool arguments. Instead of outputting a clean string for parameters, they may output a dictionary containing the property schema description (e.g. `{'query': {'type': 'string', 'description': '...'}}`).
   * **Our Solution**: We implemented recursive dictionary parsing to detect nested properties and filter out schema metadata. If no clean search query can be extracted, the agent automatically falls back to using the user's raw message as the database query, rather than throwing an `AttributeError` like `'dict' object has no attribute 'lower'`.
 ### F. Developer Experience (DevEx) & Automated Lifecycle Orchestration
-* **Our Choice**: **Root-level Makefile and non-interactive scripts**
+* **Our Choice**: **Root-level Makefile and non-interactive scripts with INFRA_ONLY mode**
 * **Justification**:
   * **Unified DevEx Entrypoint**: Rebuilding, deploying, monitoring, and testing a multi-node Kubernetes stack typically requires running dozens of commands manually. By encapsulating these in a standard `Makefile`, developers can execute full lifecycles (`make clean`, `make up`, `make test`, `make stress`, `make chaos`, `make all`) in a single step.
-  * **Image Pre-Caching & Import**: To ensure fast rebuilds and robust offline operations, all container images (ArgoCD, Redis, Ollama, Qdrant, Prometheus, Loki, Grafana) are pre-pulled and imported into the K3d node containers. This avoids redundant network operations on subsequent setups.
-  * **Automatic Readiness Gates**: Utilizing a dedicated `wait_for_ready.sh` script with native Kubernetes Go-templating avoids race conditions where tests run before pods are initialized, without requiring heavy external dependencies.
+  * **Fast Dev Loop (INFRA_ONLY)**: Re-creating clusters and re-importing large Docker images (Ollama, Prometheus, Grafana, Qdrant) is a huge dev bottleneck. We added `make clean-infra` and `make up-infra` targets (propagated as `INFRA_ONLY=true`) to delete and redeploy only the application and monitoring namespaces, bypassing cluster rebuilds and cutting the reset time down to seconds.
+  * **Image Pre-Caching & Import**: To ensure fast rebuilds and robust offline operations, all container images are pre-pulled on the host and imported into the K3d cluster. We migrated from buggy containerd-level `ctr` exec commands to the host-level `k3d image import` command which imports all images in a single parallel operation.
+  * **Automatic Readiness Gates**: Utilizing a dedicated `wait_for_ready.sh` script with namespace existence polling and native Kubernetes Go-templating. This completely avoids race conditions where tests start executing before namespaces are created by ArgoCD or before pods are initialized, without requiring heavy external dependencies.
 
 ---
 
@@ -164,7 +165,10 @@ To validate that our agent service can scale elastically under high traffic volu
 
 ## 3. Interview Prep Questions
 * *Be ready to explain how your `bootstrap.sh` ties the whole stack together.*
-* *Be ready to explain why we use ConfigMaps for configuration and Secrets for API keys.*
+* *Be ready to explain why we use ConfigMaps for configuration and Secrets for API keys, and how we avoid hardcoding them in Git*:
+  * **Separation of Concerns**: ConfigMaps are for non-sensitive parameters (endpoints, model names), whereas Secrets are for sensitive values (API keys, passwords) and are encoded as base64 in Kubernetes.
+  * **Avoiding Git Secrets Leakage**: We do not store raw API keys or passwords in `values.yaml` or any configuration files inside the Git repository.
+  * **Dynamic Secrets Generation**: In Helm templates, we dynamically generate a cryptographically secure 32-character random string (using `randAlphaNum 32` fallback) if no key is provided in the configuration, ensuring that a unique key is generated in-cluster on deployment. Similarly, Grafana's admin password is dynamically generated as a Kubernetes Secret (`prometheus-grafana`) at deployment time rather than hardcoded in code or configuration files.
 * *Be ready to explain GitOps: "Why ArgoCD?" (ArgoCD continuously monitors the Git repository and reconciles any drift in the live Kubernetes cluster, enabling automated, declarative, version-controlled rollouts).*
 * *Be ready to explain how Ollama handles custom model creation efficiently without duplicating storage or RAM/VRAM resource usage*:
   * **Layer Deduplication**: Ollama stores model parameters as content-addressable blobs (similar to Docker layers). Creating `tuned-agent` via a `Modelfile` with `FROM qwen2.5:0.5b` does *not* copy the weight files. Instead, it creates a lightweight pointer metadata file referencing the exact same weight blobs already present on disk.

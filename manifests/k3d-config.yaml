@@ -36,3 +36,8 @@ options:
       - arg: --disable=traefik
         nodeFilters:
           - server:*
+  runtime:
+    ulimits:
+      - name: nofile
+        soft: 65536
+        hard: 65536
