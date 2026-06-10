@@ -2,7 +2,7 @@
 set -eo pipefail
 
 # Namespaces to monitor
-NAMESPACES=("argocd" "agentic-edge-stack" "monitoring")
+NAMESPACES=("argocd" "monitoring" "agentic-edge-stack")
 
 echo "========================================================="
 echo "       Waiting for Cluster Components Readiness"
@@ -35,10 +35,13 @@ wait_for_pods() {
     # 1. Is not Succeeded (Completed Job)
     # 2. Is not Failed
     # 3. Either has no container status yet, OR has at least one container that is not ready.
+    local count
+    count=$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | wc -l)
+
     local unready
     unready=$(kubectl get pods -n "$ns" -o go-template='{{range .items}}{{if not (or (eq .status.phase "Succeeded") (eq .status.phase "Failed"))}}{{if .status.containerStatuses}}{{range .status.containerStatuses}}{{if not .ready}}unready {{end}}{{end}}{{else}}unready {{end}}{{end}}{{end}}' 2>/dev/null)
     
-    if [ -z "$unready" ]; then
+    if [ "$count" -gt 0 ] && [ -z "$unready" ]; then
       echo "  [OK] All active pods in '$ns' namespace are ready!"
       return 0
     fi
