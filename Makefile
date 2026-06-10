@@ -68,8 +68,6 @@ clean:
 		echo "Tearing down application and monitoring namespaces (keeping cluster)..."; \
 		kubectl delete -f gitops/application.yaml --ignore-not-found || true; \
 		kubectl delete namespace agentic-edge-stack || true; \
-		helm uninstall prometheus -n monitoring || true; \
-		helm uninstall loki-stack -n monitoring || true; \
 		kubectl delete namespace monitoring || true; \
 	else \
 		echo "Tearing down cluster (keeping local registry container for persistent cache)..."; \
