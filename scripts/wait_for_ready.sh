@@ -2,7 +2,7 @@
 set -eo pipefail
 
 # Namespaces to monitor
-NAMESPACES=("agentic-edge-stack" "monitoring" "argocd")
+NAMESPACES=("argocd" "agentic-edge-stack" "monitoring")
 
 echo "========================================================="
 echo "       Waiting for Cluster Components Readiness"
