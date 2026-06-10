@@ -118,7 +118,7 @@ def main():
     
     # Run uvicorn on localhost:18080
     app_process = subprocess.Popen(
-        ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "18080", "--log-level", "warning"],
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "18080", "--log-level", "warning"],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -126,7 +126,8 @@ def main():
     )
     
     # Wait for FastAPI to start up
-    time.sleep(2)
+    print("Waiting 5 seconds for FastAPI to initialize and bind...")
+    time.sleep(5)
 
     try:
         # 3. Query /health
@@ -172,6 +173,14 @@ def main():
 
     except Exception as e:
         print(f"\nValidation failed with error: {e}")
+        try:
+            out, err = app_process.communicate(timeout=1)
+            if out:
+                print(f"Uvicorn stdout:\n{out}")
+            if err:
+                print(f"Uvicorn stderr:\n{err}")
+        except Exception as ex:
+            print(f"Could not retrieve process logs: {ex}")
         sys.exit(1)
     finally:
         # Cleanup
