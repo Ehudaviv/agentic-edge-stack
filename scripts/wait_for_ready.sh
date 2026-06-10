@@ -12,13 +12,13 @@ wait_for_namespace() {
   local ns=$1
   echo "Waiting for namespace '$ns' to be created..."
   
-  # Wait up to 60 iterations (120 seconds / 2 minutes)
+  # Wait up to 60 iterations (300 seconds / 5 minutes)
   for i in {1..60}; do
     if kubectl get ns "$ns" &>/dev/null; then
       echo "  [OK] Namespace '$ns' exists."
       return 0
     fi
-    sleep 2
+    sleep 5
   done
   
   echo "  [ERROR] Timeout waiting for namespace '$ns' to be created."
@@ -29,8 +29,8 @@ wait_for_pods() {
   local ns=$1
   echo "Checking pod readiness in namespace '$ns'..."
   
-  # Wait up to 45 iterations (450 seconds / ~7.5 minutes)
-  for i in {1..45}; do
+  # Wait up to 60 iterations (600 seconds / ~10 minutes)
+  for i in {1..60}; do
     # This go-template check identifies any pod that:
     # 1. Is not Succeeded (Completed Job)
     # 2. Is not Failed
@@ -43,7 +43,7 @@ wait_for_pods() {
       return 0
     fi
     
-    echo "  [WAIT] Some pods in '$ns' are still initializing (Attempt $i/45)..."
+    echo "  [WAIT] Some pods in '$ns' are still initializing (Attempt $i/60)..."
     sleep 10
   done
   
