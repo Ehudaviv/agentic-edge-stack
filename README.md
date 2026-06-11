@@ -133,7 +133,7 @@ make test-cluster
   * **Username**: `admin`
   * **Password Retrieval Command**:
     ```bash
-    kubectl -n monitoring get secret prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+    kubectl -n monitoring get secret prometheus-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo
     ```
   * Open the **MLOps - Agentic Edge Stack** dashboard.
   * You will see CPU/Memory allocations, FastAPI throughput/latency metrics, and Loki log streams for both the AI Agent and Ollama.
@@ -154,34 +154,4 @@ make stress RUN_TIME=2m
 * Monitor active scaling in terminal: `kubectl get hpa agent-hpa -n agentic-edge-stack -w`
 * Observe new container lines appearing on the CPU and Memory charts in Grafana.
 
----
-
-## Troubleshooting: Inotify Limits (Loki / Promtail CrashLoopBackOff)
-
-If you see the `loki-stack-promtail` pods in `CrashLoopBackOff` state with the following error in their logs:
-`error="failed to make file target manager: too many open files"`
-
-This happens because the Linux host's default limit for inotify user instances (`fs.inotify.max_user_instances`) is too low (usually `128`) for clusters running multiple nodes/pods inside Docker containers on the same user session.
-
-### Solution
-
-We have automated this in-cluster. The Loki-Stack deployment configuration contains:
-1. **Namespace-Scoped Scrapes**: Restricts Promtail to only scrape log files from the `agentic-edge-stack` and `monitoring` namespaces (ignoring `kube-system` and `argocd`), which greatly limits the number of files watched.
-2. **Automated Init Container**: A privileged init container runs `sysctl -w fs.inotify.max_user_instances=512` at pod startup. Since the K3d node containers run in privileged mode on the host, this automatically configures the necessary kernel limits.
-
-**Fallback (Manual Host Application)**:
-If you need to manually apply this on your host machine:
-
-1. **Temporarily apply new limits**:
-   ```bash
-   sudo sysctl -w fs.inotify.max_user_instances=512
-   sudo sysctl -w fs.inotify.max_user_watches=524288
-   ```
-
-2. **Make the changes persistent** across system reboots:
-   ```bash
-   echo "fs.inotify.max_user_instances=512" | sudo tee -a /etc/sysctl.d/99-inotify.conf
-   echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.d/99-inotify.conf
-   sudo sysctl --system
-   ```
 
