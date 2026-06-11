@@ -45,8 +45,10 @@ async def pre_warm_llm():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: trigger background model pre-warming task
+    # Startup: initialize and populate Qdrant collection, then trigger model pre-warming
     import asyncio
+    from app.tools import init_qdrant_collection
+    init_qdrant_collection()
     asyncio.create_task(pre_warm_llm())
     yield
 

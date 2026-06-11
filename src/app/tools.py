@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from qdrant_client import QdrantClient
 from qdrant_client.http import exceptions
+from qdrant_client.models import Distance, VectorParams, PointStruct
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,49 @@ def get_qdrant_client():
             logger.warning(f"Failed to initialize QdrantClient at {settings.qdrant_url}: {e}")
             _qdrant_client = None
     return _qdrant_client
+
+
+def init_qdrant_collection():
+    """
+    Initializes the Qdrant collection and populates it with reference facts
+    using dummy 1-dimensional vectors, enabling active database search without
+    loading heavy embedding model libraries on resource-constrained nodes.
+    """
+    client = get_qdrant_client()
+    if not client:
+        logger.warning("Qdrant client offline. Skipping database initialization.")
+        return
+    try:
+        collections = client.get_collections()
+        col_names = [c.name for c in collections.collections]
+        
+        if settings.qdrant_collection not in col_names:
+            logger.info(f"Collection '{settings.qdrant_collection}' not found. Initializing in Qdrant...")
+            client.recreate_collection(
+                collection_name=settings.qdrant_collection,
+                vectors_config=VectorParams(size=1, distance=Distance.COSINE)
+            )
+            
+            # Populate collection with facts as payloads
+            points = []
+            for idx, (key, value) in enumerate(MOCK_KNOWLEDGE.items()):
+                points.append(
+                    PointStruct(
+                        id=idx,
+                        vector=[0.0],
+                        payload={"text": f"[Qdrant DB Source: {key}] {value}"}
+                    )
+                )
+            
+            client.upsert(
+                collection_name=settings.qdrant_collection,
+                points=points
+            )
+            logger.info(f"Qdrant collection '{settings.qdrant_collection}' populated with {len(points)} reference facts successfully.")
+        else:
+            logger.info(f"Qdrant collection '{settings.qdrant_collection}' already exists. Skipping populator.")
+    except Exception as e:
+        logger.warning(f"Failed to initialize and populate Qdrant collection: {e}")
 
 
 # Mock data to return if Qdrant collection is missing or client is offline
