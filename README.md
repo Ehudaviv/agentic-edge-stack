@@ -154,4 +154,50 @@ make stress RUN_TIME=2m
 * Monitor active scaling in terminal: `kubectl get hpa agent-hpa -n agentic-edge-stack -w`
 * Observe new container lines appearing on the CPU and Memory charts in Grafana.
 
+---
+
+## Architectural Decisions & Justifications
+
+### A. Python Agent: Native Loop vs. LangGraph/LangChain
+* **Our Choice**: **Native Python tool-calling loop**
+* **Justification**:
+  * **Simplicity & Performance**: A native implementation has zero framework overhead, resulting in faster container startup times, lower memory footprint, and easier debugging of streaming responses.
+  * **Control over SSE**: Implementing Server-Sent Events (SSE) streaming is direct and transparent, avoiding potential buffering or integration issues common in third-party wrappers.
+  * **Interview Context**: In production MLOps, keeping the service layer lightweight is critical. Demonstrating that you can write a lightweight tool-calling loop shows deep understanding of the underlying LLM JSON specifications without hiding behind framework abstractions.
+
+### B. Cluster Provisioning: K3d (K3s) vs. Kind vs. Minikube
+* **Our Choice**: **K3d (K3s in Docker)**
+* **Justification**:
+  * **Extremely Lightweight**: K3s replaces etcd with a lightweight SQLite database (by default) and wraps core Kubernetes components into a single binary. It uses less than half the memory of a typical vanilla Kubernetes distribution (like Kind or Minikube).
+  * **Speed**: K3d clusters spin up and down in seconds, making local development loops and automated bootstrapping extremely rapid.
+  * **Production Parity**: K3s is a CNCF-certified Kubernetes distribution, meaning manifests written for it are fully compatible with production-grade upstream Kubernetes (EKS, GKE, AKS).
+
+### C. Inference Server: Ollama vs. vLLM
+* **Our Choice**: **Ollama**
+* **Justification**:
+  * **Local Resource Friendly**: Ollama is specifically optimized for running models on local CPU/GPU setups with minimal RAM. It handles GGUF quantization formats out-of-the-box.
+  * **vLLM Trade-offs**: While vLLM is the gold standard for high-concurrency production serving (supporting PagedAttention and continuous batching), it has massive memory overhead (requiring large GPU VRAM or massive system RAM even for small models) and is complex to configure for CPU-only local environments.
+  * **Ease of Model Management**: Ollama's `Modelfile` syntax allows us to declaratively define system prompts, templates, and parameters (Track A) like a Dockerfile.
+
+### D. Vector Database: Qdrant vs. Weaviate
+* **Our Choice**: **Qdrant**
+* **Justification**:
+  * **Rust-based Efficiency**: Written in Rust, Qdrant has an extremely small memory footprint and very low query latency.
+  * **SDK Maturity**: The Python SDK is intuitive, simple to set up, and supports asynchronous operations natively.
+  * **Ease of Clustering**: Qdrant can easily run as a single instance or distributed cluster on Kubernetes via standard Helm charts or StatefulSets.
+
+### E. Resilient Tool-Calling (Handling Small LLM Hallucinations)
+* **Our Choice**: Defensive, custom arguments parser in the FastAPI service.
+* **Justification**:
+  * **Edge-case**: Small localized models (such as Qwen 2.5 0.5B under resource limits) sometimes hallucinate tool arguments. Instead of outputting a clean string for parameters, they may output a dictionary containing the property schema description (e.g. `{'query': {'type': 'string', 'description': '...'}}`).
+  * **Our Solution**: We implemented recursive dictionary parsing to detect nested properties and filter out schema metadata. If no clean search query can be extracted, the agent automatically falls back to using the user's raw message as the database query, rather than throwing an `AttributeError` like `'dict' object has no attribute 'lower'`.
+
+### F. Developer Experience (DevEx) & Automated Lifecycle Orchestration
+* **Our Choice**: **Root-level Makefile and non-interactive scripts with INFRA_ONLY mode**
+* **Justification**:
+  * **Unified DevEx Entrypoint**: Rebuilding, deploying, monitoring, and testing a multi-node Kubernetes stack typically requires running dozens of commands manually. By encapsulating these in a standard `Makefile`, developers can execute full lifecycles (`make clean`, `make up`, `make test`, `make stress`, `make chaos`, `make all`) in a single step.
+  * **Fast Dev Loop (INFRA_ONLY)**: Re-creating clusters and re-importing large Docker images (Ollama, Prometheus, Grafana, Qdrant) is a huge dev bottleneck. We added `make clean-infra` and `make up-infra` targets (propagated as `INFRA_ONLY=true`) to delete and redeploy only the application and monitoring namespaces, bypassing cluster rebuilds and cutting the reset time down to seconds.
+  * **Image Pre-Caching & Import**: To ensure fast rebuilds and robust offline operations, all container images are pre-pulled on the host and imported into the K3d cluster. We migrated from buggy containerd-level `ctr` exec commands to the host-level `k3d image import` command which imports all images in a single parallel operation.
+  * **Automatic Readiness Gates**: Utilizing a dedicated `wait_for_ready.sh` script with namespace existence polling and native Kubernetes Go-templating. This completely avoids race conditions where tests start executing before namespaces are created by ArgoCD or before pods are initialized, without requiring heavy external dependencies.
+
 
